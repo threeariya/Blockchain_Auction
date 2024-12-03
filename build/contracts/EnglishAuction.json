@@ -66,7 +66,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [],
@@ -79,7 +80,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [],
@@ -92,7 +94,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [],
@@ -105,7 +108,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [],
@@ -118,7 +122,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [],
@@ -131,14 +136,16 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     },
     {
       "inputs": [],
       "name": "placeBid",
       "outputs": [],
       "stateMutability": "payable",
-      "type": "function"
+      "type": "function",
+      "payable": true
     },
     {
       "inputs": [],
@@ -165,7 +172,8 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
+      "type": "function",
+      "constant": true
     }
   ],
   "metadata": "{\"compiler\":{\"version\":\"0.8.21+commit.d9974bed\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_duration\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_minBidIncrement\",\"type\":\"uint256\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"winner\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"AuctionEnded\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"bidder\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"NewBidPlaced\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"auctionEndTime\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"auctionEnded\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"endAuction\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"highestBid\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"highestBidder\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"minBidIncrement\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"placeBid\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"timeRemaining\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"withdrawBid\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"project:/contracts/LegacyEnglish.sol\":\"EnglishAuction\"},\"evmVersion\":\"shanghai\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":false,\"runs\":200},\"remappings\":[]},\"sources\":{\"project:/contracts/LegacyEnglish.sol\":{\"keccak256\":\"0x492113189b89a6a7cc5396e0a787db3cfb1752ac7a0db18d36340527e3e9255e\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://c7b00cfdf750b709b50ac48db8159c41b2972527c7c1d525ba0586f4d021dc72\",\"dweb:/ipfs/QmPuMsiKyfdQ2nLndxs4q71iwS9snJv62QTGomnf4HuikV\"]}},\"version\":1}",
@@ -6558,7 +6566,7 @@
   "sourceMap": "60:2850:5:-:0;;;457:303;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;:::i;:::-;533:10;525:5;;:18;;;;;;;;;;;;;;;;;;569:5;554:12;;:20;;;;;;;;;;;;;;;;;;598:1;585:10;:14;;;;645:9;627:15;:27;;;;:::i;:::-;610:14;:44;;;;707:16;689:15;:34;;;;457:303;;60:2850;;88:117:7;197:1;194;187:12;334:77;371:7;400:5;389:16;;334:77;;;:::o;417:122::-;490:24;508:5;490:24;:::i;:::-;483:5;480:35;470:63;;529:1;526;519:12;470:63;417:122;:::o;545:143::-;602:5;633:6;627:13;618:22;;649:33;676:5;649:33;:::i;:::-;545:143;;;;:::o;694:507::-;773:6;781;830:2;818:9;809:7;805:23;801:32;798:119;;;836:79;;:::i;:::-;798:119;956:1;981:64;1037:7;1028:6;1017:9;1013:22;981:64;:::i;:::-;971:74;;927:128;1094:2;1120:64;1176:7;1167:6;1156:9;1152:22;1120:64;:::i;:::-;1110:74;;1065:129;694:507;;;;;:::o;1207:180::-;1255:77;1252:1;1245:88;1352:4;1349:1;1342:15;1376:4;1373:1;1366:15;1393:191;1433:3;1452:20;1470:1;1452:20;:::i;:::-;1447:25;;1486:20;1504:1;1486:20;:::i;:::-;1481:25;;1529:1;1526;1522:9;1515:16;;1550:3;1547:1;1544:10;1541:36;;;1557:18;;:::i;:::-;1541:36;1393:191;;;;:::o;60:2850:5:-;;;;;;;",
   "deployedSourceMap": "60:2850:5:-:0;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;252:30;;;;;;;;;;;;;:::i;:::-;;;;;;;:::i;:::-;;;;;;;;2206:451;;;;;;;;;;;;;:::i;:::-;;216:29;;;;;;;;;;;;;:::i;:::-;;;;;;;:::i;:::-;;;;;;;;185:24;;;;;;;;;;;;;:::i;:::-;;;;;;;:::i;:::-;;;;;;;;91:20;;;;;;;;;;;;;:::i;:::-;;;;;;;:::i;:::-;;;;;;;;118:28;;;;;;;;;;;;;:::i;:::-;;;;;;;:::i;:::-;;;;;;;;153:25;;;;;;;;;;;;;:::i;:::-;;;;;;;:::i;:::-;;;;;;;;2708:199;;;;;;;;;;;;;:::i;:::-;;;;;;;:::i;:::-;;;;;;;;1033:542;;;:::i;:::-;;1641:472;;;;;;;;;;;;;:::i;:::-;;252:30;;;;:::o;2206:451::-;2271:13;;;;;;;;;;;2257:27;;:10;:27;;;2249:76;;;;;;;;;;;;:::i;:::-;;;;;;;;;2362:14;;2344:15;:32;2336:79;;;;;;;;;;;;:::i;:::-;;;;;;;;;2428:14;2445:10;;2428:27;;2479:1;2466:10;:14;;;;2515:1;2491:13;;:26;;;;;;;;;;;;;;;;;;2538:10;2530:28;;:36;2559:6;2530:36;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;2597:10;2584:27;;;2609:1;2584:27;;;;;;:::i;:::-;;;;;;;;2238:419;2206:451::o;216:29::-;;;;:::o;185:24::-;;;;;;;;;;;;;:::o;91:20::-;;;;;;;;;;;;:::o;118:28::-;;;;;;;;;;;;;:::o;153:25::-;;;;:::o;2708:199::-;2756:7;2799:14;;2780:15;:33;2776:74;;2837:1;2830:8;;;;2776:74;2884:15;2867:14;;:32;;;;:::i;:::-;2860:39;;2708:199;;:::o;1033:542::-;864:12;;;;;;;;;;;863:13;855:43;;;;;;;;;;;;:::i;:::-;;;;;;;;;935:14;;917:15;:32;909:64;;;;;;;;;;;;:::i;:::-;;;;;;;;;1128:15:::1;;1115:10;;:28;;;;:::i;:::-;1103:9;:40;1095:115;;;;;;;;;;;;:::i;:::-;;;;;;;;;1287:1;1274:10;;:14;1270:90;;;1313:13;;;;;;;;;;;1305:31;;:43;1337:10;;1305:43;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;::::0;::::1;;;;;;1270:90;1434:10;1418:13;;:26;;;;;;;;;;;;;;;;;;1468:9;1455:10;:22;;;;1545:10;1532:35;;;1557:9;1532:35;;;;;;:::i;:::-;;;;;;;;1033:542::o:0;1641:472::-;1705:5;;;;;;;;;;1691:19;;:10;:19;;;1683:66;;;;;;;;;;;;:::i;:::-;;;;;;;;;1787:14;;1768:15;:33;;1760:71;;;;;;;;;;;;:::i;:::-;;;;;;;;;1851:12;;;;;;;;;;;1850:13;1842:47;;;;;;;;;;;;:::i;:::-;;;;;;;;;1917:4;1902:12;;:19;;;;;;;;;;;;;;;;;;1982:5;;;;;;;;;;1974:23;;:35;1998:10;;1974:35;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;2066:39;2079:13;;;;;;;;;;;2094:10;;2066:39;;;;;;;:::i;:::-;;;;;;;;1641:472::o;7:77:7:-;44:7;73:5;62:16;;7:77;;;:::o;90:118::-;177:24;195:5;177:24;:::i;:::-;172:3;165:37;90:118;;:::o;214:222::-;307:4;345:2;334:9;330:18;322:26;;358:71;426:1;415:9;411:17;402:6;358:71;:::i;:::-;214:222;;;;:::o;442:90::-;476:7;519:5;512:13;505:21;494:32;;442:90;;;:::o;538:109::-;619:21;634:5;619:21;:::i;:::-;614:3;607:34;538:109;;:::o;653:210::-;740:4;778:2;767:9;763:18;755:26;;791:65;853:1;842:9;838:17;829:6;791:65;:::i;:::-;653:210;;;;:::o;869:126::-;906:7;946:42;939:5;935:54;924:65;;869:126;;;:::o;1001:96::-;1038:7;1067:24;1085:5;1067:24;:::i;:::-;1056:35;;1001:96;;;:::o;1103:118::-;1190:24;1208:5;1190:24;:::i;:::-;1185:3;1178:37;1103:118;;:::o;1227:222::-;1320:4;1358:2;1347:9;1343:18;1335:26;;1371:71;1439:1;1428:9;1424:17;1415:6;1371:71;:::i;:::-;1227:222;;;;:::o;1455:169::-;1539:11;1573:6;1568:3;1561:19;1613:4;1608:3;1604:14;1589:29;;1455:169;;;;:::o;1630:223::-;1770:34;1766:1;1758:6;1754:14;1747:58;1839:6;1834:2;1826:6;1822:15;1815:31;1630:223;:::o;1859:366::-;2001:3;2022:67;2086:2;2081:3;2022:67;:::i;:::-;2015:74;;2098:93;2187:3;2098:93;:::i;:::-;2216:2;2211:3;2207:12;2200:19;;1859:366;;;:::o;2231:419::-;2397:4;2435:2;2424:9;2420:18;2412:26;;2484:9;2478:4;2474:20;2470:1;2459:9;2455:17;2448:47;2512:131;2638:4;2512:131;:::i;:::-;2504:139;;2231:419;;;:::o;2656:221::-;2796:34;2792:1;2784:6;2780:14;2773:58;2865:4;2860:2;2852:6;2848:15;2841:29;2656:221;:::o;2883:366::-;3025:3;3046:67;3110:2;3105:3;3046:67;:::i;:::-;3039:74;;3122:93;3211:3;3122:93;:::i;:::-;3240:2;3235:3;3231:12;3224:19;;2883:366;;;:::o;3255:419::-;3421:4;3459:2;3448:9;3444:18;3436:26;;3508:9;3502:4;3498:20;3494:1;3483:9;3479:17;3472:47;3536:131;3662:4;3536:131;:::i;:::-;3528:139;;3255:419;;;:::o;3680:85::-;3725:7;3754:5;3743:16;;3680:85;;;:::o;3771:60::-;3799:3;3820:5;3813:12;;3771:60;;;:::o;3837:158::-;3895:9;3928:61;3946:42;3955:32;3981:5;3955:32;:::i;:::-;3946:42;:::i;:::-;3928:61;:::i;:::-;3915:74;;3837:158;;;:::o;4001:147::-;4096:45;4135:5;4096:45;:::i;:::-;4091:3;4084:58;4001:147;;:::o;4154:238::-;4255:4;4293:2;4282:9;4278:18;4270:26;;4306:79;4382:1;4371:9;4367:17;4358:6;4306:79;:::i;:::-;4154:238;;;;:::o;4398:180::-;4446:77;4443:1;4436:88;4543:4;4540:1;4533:15;4567:4;4564:1;4557:15;4584:194;4624:4;4644:20;4662:1;4644:20;:::i;:::-;4639:25;;4678:20;4696:1;4678:20;:::i;:::-;4673:25;;4722:1;4719;4715:9;4707:17;;4746:1;4740:4;4737:11;4734:37;;;4751:18;;:::i;:::-;4734:37;4584:194;;;;:::o;4784:167::-;4924:19;4920:1;4912:6;4908:14;4901:43;4784:167;:::o;4957:366::-;5099:3;5120:67;5184:2;5179:3;5120:67;:::i;:::-;5113:74;;5196:93;5285:3;5196:93;:::i;:::-;5314:2;5309:3;5305:12;5298:19;;4957:366;;;:::o;5329:419::-;5495:4;5533:2;5522:9;5518:18;5510:26;;5582:9;5576:4;5572:20;5568:1;5557:9;5553:17;5546:47;5610:131;5736:4;5610:131;:::i;:::-;5602:139;;5329:419;;;:::o;5754:169::-;5894:21;5890:1;5882:6;5878:14;5871:45;5754:169;:::o;5929:366::-;6071:3;6092:67;6156:2;6151:3;6092:67;:::i;:::-;6085:74;;6168:93;6257:3;6168:93;:::i;:::-;6286:2;6281:3;6277:12;6270:19;;5929:366;;;:::o;6301:419::-;6467:4;6505:2;6494:9;6490:18;6482:26;;6554:9;6548:4;6544:20;6540:1;6529:9;6525:17;6518:47;6582:131;6708:4;6582:131;:::i;:::-;6574:139;;6301:419;;;:::o;6726:191::-;6766:3;6785:20;6803:1;6785:20;:::i;:::-;6780:25;;6819:20;6837:1;6819:20;:::i;:::-;6814:25;;6862:1;6859;6855:9;6848:16;;6883:3;6880:1;6877:10;6874:36;;;6890:18;;:::i;:::-;6874:36;6726:191;;;;:::o;6923:249::-;7063:34;7059:1;7051:6;7047:14;7040:58;7132:32;7127:2;7119:6;7115:15;7108:57;6923:249;:::o;7178:366::-;7320:3;7341:67;7405:2;7400:3;7341:67;:::i;:::-;7334:74;;7417:93;7506:3;7417:93;:::i;:::-;7535:2;7530:3;7526:12;7519:19;;7178:366;;;:::o;7550:419::-;7716:4;7754:2;7743:9;7739:18;7731:26;;7803:9;7797:4;7793:20;7789:1;7778:9;7774:17;7767:47;7831:131;7957:4;7831:131;:::i;:::-;7823:139;;7550:419;;;:::o;7975:221::-;8115:34;8111:1;8103:6;8099:14;8092:58;8184:4;8179:2;8171:6;8167:15;8160:29;7975:221;:::o;8202:366::-;8344:3;8365:67;8429:2;8424:3;8365:67;:::i;:::-;8358:74;;8441:93;8530:3;8441:93;:::i;:::-;8559:2;8554:3;8550:12;8543:19;;8202:366;;;:::o;8574:419::-;8740:4;8778:2;8767:9;8763:18;8755:26;;8827:9;8821:4;8817:20;8813:1;8802:9;8798:17;8791:47;8855:131;8981:4;8855:131;:::i;:::-;8847:139;;8574:419;;;:::o;8999:175::-;9139:27;9135:1;9127:6;9123:14;9116:51;8999:175;:::o;9180:366::-;9322:3;9343:67;9407:2;9402:3;9343:67;:::i;:::-;9336:74;;9419:93;9508:3;9419:93;:::i;:::-;9537:2;9532:3;9528:12;9521:19;;9180:366;;;:::o;9552:419::-;9718:4;9756:2;9745:9;9741:18;9733:26;;9805:9;9799:4;9795:20;9791:1;9780:9;9776:17;9769:47;9833:131;9959:4;9833:131;:::i;:::-;9825:139;;9552:419;;;:::o;9977:171::-;10117:23;10113:1;10105:6;10101:14;10094:47;9977:171;:::o;10154:366::-;10296:3;10317:67;10381:2;10376:3;10317:67;:::i;:::-;10310:74;;10393:93;10482:3;10393:93;:::i;:::-;10511:2;10506:3;10502:12;10495:19;;10154:366;;;:::o;10526:419::-;10692:4;10730:2;10719:9;10715:18;10707:26;;10779:9;10773:4;10769:20;10765:1;10754:9;10750:17;10743:47;10807:131;10933:4;10807:131;:::i;:::-;10799:139;;10526:419;;;:::o;10951:332::-;11072:4;11110:2;11099:9;11095:18;11087:26;;11123:71;11191:1;11180:9;11176:17;11167:6;11123:71;:::i;:::-;11204:72;11272:2;11261:9;11257:18;11248:6;11204:72;:::i;:::-;10951:332;;;;;:::o",
   "source": "// SPDX-License-Identifier: MIT\r\npragma solidity ^0.8.0;\r\n\r\ncontract EnglishAuction {\r\n    address public owner;\r\n    address public highestBidder;\r\n    uint256 public highestBid;\r\n    bool public auctionEnded;\r\n    uint256 public auctionEndTime;\r\n    uint256 public minBidIncrement;\r\n\r\n    // Events for tracking auction state\r\n    event NewBidPlaced(address indexed bidder, uint256 amount);\r\n    event AuctionEnded(address winner, uint256 amount);\r\n\r\n    constructor(uint256 _duration, uint256 _minBidIncrement) {\r\n        owner = msg.sender;\r\n        auctionEnded = false;\r\n        highestBid = 0;\r\n        auctionEndTime = block.timestamp + _duration; // Set auction duration\r\n        minBidIncrement = _minBidIncrement; // Set minimum bid increment\r\n    }\r\n\r\n    // Modifier to check if the auction has ended\r\n    modifier auctionActive() {\r\n        require(!auctionEnded, \"Auction has ended\");\r\n        require(block.timestamp < auctionEndTime, \"Auction has expired\");\r\n        _;\r\n    }\r\n\r\n    // Function to place a bid\r\n    function placeBid() external payable auctionActive {\r\n        require(msg.value > highestBid + minBidIncrement, \"Bid must be higher than current bid plus the minimum increment\");\r\n\r\n        // Refund the previous highest bidder\r\n        if (highestBid > 0) {\r\n            payable(highestBidder).transfer(highestBid);\r\n        }\r\n\r\n        // Update the highest bid and bidder\r\n        highestBidder = msg.sender;\r\n        highestBid = msg.value;\r\n\r\n        // Emit event for a new bid\r\n        emit NewBidPlaced(msg.sender, msg.value);\r\n    }\r\n\r\n    // Function to end the auction manually (owner only)\r\n    function endAuction() external {\r\n        require(msg.sender == owner, \"Only the owner can end the auction\");\r\n        require(block.timestamp >= auctionEndTime, \"Auction has not yet ended\");\r\n        require(!auctionEnded, \"Auction already ended\");\r\n\r\n        auctionEnded = true;\r\n\r\n        // Transfer funds to the owner\r\n        payable(owner).transfer(highestBid);\r\n\r\n        // Emit event for auction end\r\n        emit AuctionEnded(highestBidder, highestBid);\r\n    }\r\n\r\n    // Function to withdraw bid if you are the highest bidder (before auction ends)\r\n    function withdrawBid() external {\r\n        require(msg.sender == highestBidder, \"Only the highest bidder can withdraw\");\r\n        require(block.timestamp < auctionEndTime, \"Auction has ended, cannot withdraw\");\r\n\r\n        uint256 amount = highestBid;\r\n        highestBid = 0;\r\n        highestBidder = address(0);\r\n\r\n        payable(msg.sender).transfer(amount);\r\n\r\n        emit NewBidPlaced(msg.sender, 0); // Emit zero bid event for withdrawal\r\n    }\r\n\r\n    // Get current auction time remaining\r\n    function timeRemaining() external view returns (uint256) {\r\n        if (block.timestamp >= auctionEndTime) {\r\n            return 0;\r\n        }\r\n        return auctionEndTime - block.timestamp;\r\n    }\r\n}\r\n",
-  "sourcePath": "D:\\4thYear_1stSemester\\Blockchain\\Project\\Auction-test\\contracts\\LegacyEnglish.sol",
+  "sourcePath": "C:\\Users\\three\\OneDrive\\Documents\\GitHub\\Blockchain_Auction\\contracts\\LegacyEnglish.sol",
   "ast": {
     "absolutePath": "project:/contracts/LegacyEnglish.sol",
     "exportedSymbols": {
@@ -9639,12 +9647,13 @@
     "5777": {
       "events": {},
       "links": {},
-      "address": "0x4a60957A88979eE546D41D120bE7bD7999f80abd",
-      "transactionHash": "0xaf3a7005e3b65f66c9aa588aa7043add0718fa60b733550e1ff42a9a89e2bda7"
+      "address": "0x853BC86eBe3034A6e0454576D58DD158078C4bD2",
+      "transactionHash": "0xe06d8ed7ce2e0bd54d6d00208a4c7b0a3ced09840f26f0d82ee8fc1deea1f3e5"
     }
   },
   "schemaVersion": "3.4.16",
-  "updatedAt": "2024-11-27T07:59:59.708Z",
+  "updatedAt": "2024-12-03T12:09:00.615Z",
+  "networkType": "ethereum",
   "devdoc": {
     "kind": "dev",
     "methods": {},
