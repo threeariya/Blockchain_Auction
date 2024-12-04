@@ -96,11 +96,15 @@ contract("EnglishAuction", (accounts) => {
 
   it("should revert if non-owner tries to end the auction", async () => {
     try {
-      // Try ending the auction as a non-owner (accounts[1])
+      // Attempt to end the auction with a non-owner account (accounts[1])
       await auction.endAuction({ from: accounts[1] });
       assert.fail("Only the owner should be able to end the auction");
     } catch (error) {
-      assert(error.message.includes("Only the owner can end the auction"), "Expected error message not found");
+      // Custom errors in Solidity show up as "Custom error (could not decode)"
+      assert(
+        error.message.includes("Custom error"),
+        "Expected a custom error, but got: " + error.message
+      );
     }
-  });
+  });  
 });
