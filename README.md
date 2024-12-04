@@ -21,7 +21,7 @@
    - Make sure that Ganache is running on the default settings (`127.0.0.1:7545`).
    - If using Ganache CLI, make sure it’s started with the following:
      ```bash
-     ganache --port 8545 --networkId 5777
+     ganache --port 8545 --networkId 1337
      ```
 
 2. **Open Truffle Console**
