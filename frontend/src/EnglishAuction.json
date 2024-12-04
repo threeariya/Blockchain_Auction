@@ -6806,12 +6806,12 @@
     "1337": {
       "events": {},
       "links": {},
-      "address": "0xc0Ca7be1d2C9E85bF7081a739EE8d8006A467768",
-      "transactionHash": "0xe3b205d068df24d7a786660795f8b3355e03e3528e7f896ebe5bd25bd1fc0365"
+      "address": "0xA88C778DA526b49cfA108a526cAbe4eE76086cEA",
+      "transactionHash": "0xfe6f060fae212fee53feda341718a8a92ec4371466f945ab3686f9da6d272536"
     }
   },
   "schemaVersion": "3.4.16",
-  "updatedAt": "2024-12-04T14:48:40.497Z",
+  "updatedAt": "2024-12-04T15:20:13.704Z",
   "networkType": "ethereum",
   "devdoc": {
     "kind": "dev",
