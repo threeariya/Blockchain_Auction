@@ -13,7 +13,7 @@ contract EnglishAuction is Ownable {
     uint256 public immutable auctionEndTime;
     uint256 public immutable minBidIncrement;
 
-    bool private locked; // Custom reentrancy guard
+    bool private locked = false; // Custom reentrancy guard
 
     event NewBidPlaced(address indexed bidder, uint256 amount);
     event AuctionEnded(address winner, uint256 amount);
