@@ -1,35 +1,27 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
-contract EnglishAuction is Ownable {
+contract EnglishAuction {
     using Address for address payable;
 
-    address public highestBidder;
-    uint256 public highestBid;
-    bool public auctionEnded;
-    uint256 public immutable auctionEndTime;
-    uint256 public immutable minBidIncrement;
+    struct Auction {
+        address highestBidder;
+        uint256 highestBid;
+        uint256 auctionEndTime;
+        bool auctionEnded;
+        uint256 minBidIncrement;
+        address creator; // The address that created the auction
+    }
 
+    mapping(uint256 => Auction) public auctions; // Mapping to track auctions by ID
     bool private locked = false; // Custom reentrancy guard
 
-    event NewBidPlaced(address indexed bidder, uint256 amount);
-    event AuctionEnded(address winner, uint256 amount);
-
-    constructor(uint256 _duration, uint256 _minBidIncrement) Ownable(msg.sender) {
-        auctionEnded = false;
-        highestBid = 0;
-        auctionEndTime = block.timestamp + _duration;
-        minBidIncrement = _minBidIncrement;
-    }
-
-    modifier auctionActive() {
-        require(!auctionEnded, "Auction has ended");
-        require(block.timestamp < auctionEndTime, "Auction has expired");
-        _;
-    }
+    event AuctionCreated(uint256 auctionId, uint256 duration, uint256 minBidIncrement, address creator);
+    event NewBidPlaced(uint256 auctionId, address indexed bidder, uint256 amount);
+    event AuctionEnded(uint256 auctionId, address winner, uint256 amount);
 
     modifier nonReentrant() {
         require(!locked, "Reentrant call detected");
@@ -38,40 +30,71 @@ contract EnglishAuction is Ownable {
         locked = false;
     }
 
-    function placeBid() external payable auctionActive nonReentrant {
-        require(msg.value > highestBid + minBidIncrement, "Bid must be higher than current bid plus the minimum increment");
+    modifier auctionActive(uint256 auctionId) {
+        require(!auctions[auctionId].auctionEnded, "Auction has ended");
+        require(block.timestamp < auctions[auctionId].auctionEndTime, "Auction has expired");
+        _;
+    }
 
-        if (highestBid > 0) {
-            payable(highestBidder).sendValue(highestBid);
+    modifier onlyAuctionCreator(uint256 auctionId) {
+        require(msg.sender == auctions[auctionId].creator, "Only the auction creator can perform this action");
+        _;
+    }
+
+    // Create a new auction
+    function createAuction(
+        uint256 auctionId,
+        uint256 _duration,
+        uint256 _minBidIncrement
+    ) external {
+        require(auctions[auctionId].auctionEndTime == 0, "Auction already exists");
+        auctions[auctionId] = Auction({
+            highestBidder: address(0),
+            highestBid: 0,
+            auctionEndTime: block.timestamp + _duration,
+            auctionEnded: false,
+            minBidIncrement: _minBidIncrement,
+            creator: msg.sender // Set the auction creator as the sender
+        });
+
+        emit AuctionCreated(auctionId, _duration, _minBidIncrement, msg.sender);
+    }
+
+    // Place a bid on a specific auction
+    function placeBid(uint256 auctionId) external payable auctionActive(auctionId) nonReentrant {
+        Auction storage auction = auctions[auctionId];
+        require(
+            msg.value > auction.highestBid + auction.minBidIncrement,
+            "Bid must be higher than current bid plus the minimum increment"
+        );
+
+        // Refund the previous highest bidder if necessary
+        if (auction.highestBid > 0) {
+            payable(auction.highestBidder).sendValue(auction.highestBid);
         }
 
-        highestBidder = msg.sender;
-        highestBid = msg.value;
+        auction.highestBidder = msg.sender;
+        auction.highestBid = msg.value;
 
-        emit NewBidPlaced(msg.sender, msg.value);
+        emit NewBidPlaced(auctionId, msg.sender, msg.value);
     }
 
-    function withdrawBid() external nonReentrant {
-        require(msg.sender == highestBidder, "Only the highest bidder can withdraw");
-        require(block.timestamp < auctionEndTime, "Auction has ended, cannot withdraw");
+    // End the auction and transfer the highest bid to the auction creator
+    function endAuction(uint256 auctionId) external onlyAuctionCreator(auctionId) nonReentrant {
+        Auction storage auction = auctions[auctionId];
+        require(block.timestamp >= auction.auctionEndTime, "Auction has not yet ended");
+        require(!auction.auctionEnded, "Auction already ended");
 
-        uint256 amount = highestBid;
-        highestBid = 0;
-        highestBidder = address(0);
+        auction.auctionEnded = true;
 
-        payable(msg.sender).sendValue(amount);
+        // Transfer the highest bid to the auction creator
+        payable(auction.creator).sendValue(auction.highestBid);
 
-        emit NewBidPlaced(msg.sender, 0);
+        emit AuctionEnded(auctionId, auction.highestBidder, auction.highestBid);
     }
 
-    function endAuction() external onlyOwner nonReentrant {
-        require(block.timestamp >= auctionEndTime, "Auction has not yet ended");
-        require(!auctionEnded, "Auction already ended");
-
-        auctionEnded = true;
-
-        payable(owner()).sendValue(highestBid);
-
-        emit AuctionEnded(highestBidder, highestBid);
+    // Fallback function to handle unexpected Ether sent directly to the contract
+    receive() external payable {
+        revert("Direct Ether transfers not allowed");
     }
 }

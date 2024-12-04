@@ -1,9 +1,10 @@
-// SPDX-License-Identifier: MIT
 const EnglishAuction = artifacts.require("EnglishAuction");
 
 module.exports = function (deployer) {
-  // Example: Deploying the EnglishAuction contract with a 1-hour duration (3600 seconds) 
-  // and a minimum bid increment of 0.01 ether (in wei).
-  const minBidIncrement = web3.utils.toWei("0.01", "ether"); // Converts 0.01 ether to wei
-  deployer.deploy(EnglishAuction, 3600, minBidIncrement);
+  // Example values for duration (3600 seconds = 1 hour) and minimum bid increment
+  const duration = 3600;  // 1 hour in seconds
+  const minBidIncrement = web3.utils.toWei("0.01", "ether"); // 0.01 ether in wei
+
+  // Deploy the contract with the required parameters
+  deployer.deploy(EnglishAuction, duration, minBidIncrement);
 };
