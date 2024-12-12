@@ -67,6 +67,7 @@ contract EnglishAuction {
             msg.value > auction.highestBid + auction.minBidIncrement,
             "Bid must be higher than current bid plus the minimum increment"
         );
+        require(msg.sender != auction.highestBidder, "You are already the highest bidder");
 
         // Refund the previous highest bidder if necessary
         if (auction.highestBid > 0) {
