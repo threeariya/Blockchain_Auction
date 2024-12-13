@@ -18,7 +18,7 @@
 
 1. **Start Ganache Network**
    - Open Ganache (either the Ganache GUI or Ganache CLI).
-   - Make sure that Ganache is running on the default settings (`127.0.0.1:7545`).
+   - Make sure that Ganache is running on the default settings (`127.0.0.1:8545`).
    - If using Ganache CLI, make sure it’s started with the following:
      ```bash
      ganache --port 8545 --networkId 1337

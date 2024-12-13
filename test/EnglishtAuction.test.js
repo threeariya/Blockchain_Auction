@@ -344,5 +344,33 @@ contract("EnglishAuction", (accounts) => {
     // Get auction details after the valid second bid
     auctionDetails = await auction.getAuctionDetails(auctionId);
     assert.equal(auctionDetails.highestBid.toString(), validBidAmount, "Second bid should be the highest bid");
+  });
+  
+  it("should deny withdrawal if the auction has not ended yet", async () => {
+    // Create an auction
+    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
+  
+    // Place a bid from accounts[1]
+    const bidAmount = web3.utils.toWei("1", "ether");
+    await auction.placeBid(1, { from: accounts[1], value: bidAmount });
+  
+    // Try to withdraw funds before the auction ends
+    try {
+      await auction.withdraw(1, { from: accounts[0] }); // Attempt to withdraw by the owner (creator) before the auction ends
+      assert.fail("Withdrawal should not be allowed before the auction ends");
+    } catch (error) {
+      assert(
+        error.message.includes("Auction has not yet ended"),
+        "Expected error for attempting to withdraw before the auction ends"
+      );
+    }
+  
+    // Ensure the contract balance is still holding the funds (no withdrawal occurred)
+    const contractBalance = await web3.eth.getBalance(auction.address);
+    assert.equal(
+      contractBalance,
+      bidAmount,
+      "Contract balance should remain unchanged as the withdrawal should fail"
+    );
   });  
 });
