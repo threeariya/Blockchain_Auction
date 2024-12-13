@@ -227,3 +227,74 @@ contract("EnglishAuction", (accounts) => {
     );
   });
 });
+
+
+  it("should refund the previous highest bidder when a new highest bid is placed", async () => {
+    // Create an auction
+    await auction.createAuction(1, duration, minBidIncrement, { from: accounts[0] });
+  
+    // Place an initial bid of 1 ether from accounts[1]
+    const initialBidder = accounts[1];
+    const initialBid = web3.utils.toWei("1", "ether");
+    await auction.placeBid(1, { from: initialBidder, value: initialBid });
+  
+    // Check the balance of the initial bidder before the new bid
+    const initialBalance = await web3.eth.getBalance(initialBidder);
+  
+    // Place a higher bid of 1.5 ether from accounts[2]
+    const newBidder = accounts[2];
+    const newBid = web3.utils.toWei("1.5", "ether");
+    await auction.placeBid(1, { from: newBidder, value: newBid });
+  
+    // Check the balance of the initial bidder after the new bid
+    const finalBalance = await web3.eth.getBalance(initialBidder);
+  
+    // Verify that the previous highest bidder was refunded
+    const refund = web3.utils.toBN(finalBalance).sub(web3.utils.toBN(initialBalance));
+    assert.equal(refund.toString(), initialBid, "Previous highest bidder should be refunded their bid amount");
+  
+    // Verify the new highest bidder is updated
+    const auctionDetails = await auction.auctions(1);
+    assert.equal(
+      web3.utils.fromWei(auctionDetails.highestBid, "ether"),
+      "1.5",
+      "Highest bid should be 1.5 ether"
+    );
+    assert.equal(auctionDetails.highestBidder, newBidder, "Highest bidder should be the new bidder");
+  });
+
+  it("should prevent the current highest bidder from re-bidding in the same auction", async () => {
+    // Create an auction
+    await auction.createAuction(1, duration, minBidIncrement, { from: accounts[0] });
+  
+    // Place an initial bid of 1 ether from accounts[1]
+    const highestBidder = accounts[1];
+    const initialBid = web3.utils.toWei("1", "ether");
+    await auction.placeBid(1, { from: highestBidder, value: initialBid });
+  
+    // Attempt to place another bid by the same bidder
+    try {
+      const additionalBid = web3.utils.toWei("1.1", "ether"); // A valid higher bid
+      await auction.placeBid(1, { from: highestBidder, value: additionalBid });
+      assert.fail("Current highest bidder should not be able to place another bid");
+    } catch (error) {
+      assert(
+        error.message.includes("You are already the highest bidder"),
+        "Expected revert error for highest bidder re-bidding"
+      );
+    }
+  
+    // Verify that the auction state remains unchanged
+    const auctionDetails = await auction.auctions(1);
+    assert.equal(
+      web3.utils.fromWei(auctionDetails.highestBid, "ether"),
+      "1",
+      "Highest bid should remain 1 ether"
+    );
+    assert.equal(
+      auctionDetails.highestBidder,
+      highestBidder,
+      "Highest bidder should remain the same"
+    );
+  });
+});

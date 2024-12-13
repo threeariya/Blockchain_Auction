@@ -37,6 +37,9 @@ module.exports = {
     // },
   },
 
+  // Change build directory to frontend/src
+  contracts_build_directory: "./frontend/src/contracts",
+
   // Set default mocha options here, use special reporters, etc.
   mocha: {
     timeout: 100000, // Specify a timeout for your tests if needed
