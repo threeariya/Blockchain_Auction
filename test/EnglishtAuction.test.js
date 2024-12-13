@@ -1,52 +1,101 @@
+const truffleAssert = require('truffle-assertions');
+const ERC721Mock = artifacts.require("ERC721Mock");
 const EnglishAuction = artifacts.require("EnglishAuction");
 
 contract("EnglishAuction", (accounts) => {
   let auction;
+  let nft;
   const duration = 3600; // 1 hour
   const minBidIncrement = web3.utils.toWei("0.01", "ether"); // 0.01 ether
   const startingPrice = web3.utils.toWei("0", "ether"); // Starting price set to 0 ether
+  const tokenId = 1;
 
   beforeEach(async () => {
-    // Deploy the contract with the correct parameters: duration and minBidIncrement
-    auction = await EnglishAuction.new(duration, minBidIncrement, { from: accounts[0] });
+    // Deploy a mock ERC-721 contract
+    nft = await ERC721Mock.new("NFT Mock", "NFTM");
+
+    // Mint an NFT to account[0]
+    await nft.mint(accounts[0], tokenId);
+
+    // Deploy the EnglishAuction contract
+    auction = await EnglishAuction.new("AuctionToken", "ATK");
+
+    // Approve the auction contract to transfer the NFT
+    await nft.approve(auction.address, tokenId, { from: accounts[0] });
   });
 
   it("should allow any user to create their own auction", async () => {
     // Create an auction by accounts[0]
-    const tx1 = await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
-  
+    const tx1 = await auction.createAuction(
+      1, 
+      nft.address, 
+      tokenId, 
+      duration, 
+      minBidIncrement, 
+      startingPrice, 
+      { from: accounts[0] }
+    );
+
     // Verify that the auction details are correct
-    const auctionDetails = await auction.auctions(1);
-    assert.equal(auctionDetails.highestBid, "0", "Initial highest bid should be 0");
-    assert.equal(auctionDetails.minBidIncrement.toString(), minBidIncrement, "Minimum bid increment should match");
+    const auctionDetails = await auction.getAuctionDetails(1);
+    assert.equal(auctionDetails.highestBid.toString(), "0", "Initial highest bid should be 0");
+    assert.equal(
+      auctionDetails.minBidIncrement.toString(),
+      minBidIncrement,
+      "Minimum bid increment should match"
+    );
     assert.isFalse(auctionDetails.auctionEnded, "Auction should not be ended");
     assert.equal(auctionDetails.creator, accounts[0], "Creator should be accounts[0]");
-  
+
     // Check the AuctionCreated event emitted for auctionId 1
-    const event1 = tx1.logs.find(log => log.event === "AuctionCreated");
+    const event1 = tx1.logs.find((log) => log.event === "AuctionCreated");
     assert.ok(event1, "AuctionCreated event should be emitted");
     assert.equal(event1.args.auctionId.toString(), "1", "AuctionId in the event should be 1");
-    assert.equal(event1.args.minBidIncrement.toString(), minBidIncrement, "Minimum bid increment in the event should match");
-  
-    // Create an auction by accounts[1]
-    const tx2 = await auction.createAuction(2, duration, minBidIncrement, startingPrice, { from: accounts[1] });
-  
+    assert.equal(
+      event1.args.minBidIncrement.toString(),
+      minBidIncrement,
+      "Minimum bid increment in the event should match"
+    );
+
+    // Create another auction by accounts[1]
+    const tokenId2 = 2;
+    await nft.mint(accounts[1], tokenId2);
+    await nft.approve(auction.address, tokenId2, { from: accounts[1] });
+
+    const tx2 = await auction.createAuction(
+      2, 
+      nft.address, 
+      tokenId2, 
+      duration, 
+      minBidIncrement, 
+      startingPrice, 
+      { from: accounts[1] }
+    );
+
     // Verify the auction details
-    const auctionDetails2 = await auction.auctions(2);
-    assert.equal(auctionDetails2.highestBid, "0", "Initial highest bid should be 0");
-    assert.equal(auctionDetails2.minBidIncrement.toString(), minBidIncrement, "Minimum bid increment should match");
+    const auctionDetails2 = await auction.getAuctionDetails(2);
+    assert.equal(auctionDetails2.highestBid.toString(), "0", "Initial highest bid should be 0");
+    assert.equal(
+      auctionDetails2.minBidIncrement.toString(),
+      minBidIncrement,
+      "Minimum bid increment should match"
+    );
     assert.isFalse(auctionDetails2.auctionEnded, "Auction should not be ended");
     assert.equal(auctionDetails2.creator, accounts[1], "Creator should be accounts[1]");
-  
+
     // Check the AuctionCreated event emitted for auctionId 2
-    const event2 = tx2.logs.find(log => log.event === "AuctionCreated");
+    const event2 = tx2.logs.find((log) => log.event === "AuctionCreated");
     assert.ok(event2, "AuctionCreated event should be emitted");
     assert.equal(event2.args.auctionId.toString(), "2", "AuctionId in the event should be 2");
-    assert.equal(event2.args.minBidIncrement.toString(), minBidIncrement, "Minimum bid increment in the event should match");
+    assert.equal(
+      event2.args.minBidIncrement.toString(),
+      minBidIncrement,
+      "Minimum bid increment in the event should match"
+    );
   });
 
   it("should allow users to bid on any auction", async () => {
-    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
+    await auction.createAuction(1, nft.address, tokenId, duration, minBidIncrement, startingPrice, { from: accounts[0] });
 
     // Place a bid of 1 ether from accounts[1]
     await auction.placeBid(1, { from: accounts[1], value: web3.utils.toWei("1", "ether") });
@@ -72,7 +121,7 @@ contract("EnglishAuction", (accounts) => {
   });
 
   it("should reject a bid lower than the minimum increment", async () => {
-    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
+    await auction.createAuction(1, nft.address, tokenId, duration, minBidIncrement, startingPrice, { from: accounts[0] });
 
     // Place an initial valid bid of 1 ether
     await auction.placeBid(1, { from: accounts[1], value: web3.utils.toWei("1", "ether") });
@@ -98,7 +147,7 @@ contract("EnglishAuction", (accounts) => {
   });
 
   it("should allow the creator to end their auction after time has passed", async () => {
-    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
+    await auction.createAuction(1, nft.address, tokenId, duration, minBidIncrement, startingPrice, { from: accounts[0] });
 
     // Place a valid bid
     await auction.placeBid(1, { from: accounts[1], value: web3.utils.toWei("1", "ether") });
@@ -145,7 +194,7 @@ contract("EnglishAuction", (accounts) => {
   });
 
   it("should revert if non-owner tries to end the auction", async () => {
-    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
+    await auction.createAuction(1, nft.address, tokenId, duration, minBidIncrement, startingPrice, { from: accounts[0] });
 
     // Try to end the auction as a non-owner (accounts[1])
     try {
@@ -161,7 +210,7 @@ contract("EnglishAuction", (accounts) => {
 
   it("should refund the previous highest bidder when a new highest bid is placed", async () => {
     // Create an auction
-    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
+    await auction.createAuction(1, nft.address, tokenId, duration, minBidIncrement, startingPrice, { from: accounts[0] });
   
     // Place an initial bid of 1 ether from accounts[1]
     const initialBidder = accounts[1];
@@ -195,7 +244,7 @@ contract("EnglishAuction", (accounts) => {
 
   it("should prevent the current highest bidder from re-bidding in the same auction", async () => {
     // Create an auction
-    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
+    await auction.createAuction(1, nft.address, tokenId, duration, minBidIncrement, startingPrice, { from: accounts[0] });
   
     // Place an initial bid of 1 ether from accounts[1]
     const highestBidder = accounts[1];
@@ -234,7 +283,7 @@ contract("EnglishAuction", (accounts) => {
     const highestBidder = accounts[1];
     const bidAmount = web3.utils.toWei("1", "ether");
   
-    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: owner });
+    await auction.createAuction(1, nft.address, tokenId, duration, minBidIncrement, startingPrice, { from: owner });
   
     // Place a bid by accounts[1]
     await auction.placeBid(1, { from: highestBidder, value: bidAmount });
@@ -300,7 +349,7 @@ contract("EnglishAuction", (accounts) => {
     const startingPrice = web3.utils.toWei("10", "ether"); // Starting price of 10 ether
   
     // Create the auction with a starting price of 10 ether
-    await auction.createAuction(auctionId, duration, minBidIncrement, startingPrice, { from: owner });
+    await auction.createAuction(auctionId, nft.address, tokenId, duration, minBidIncrement, startingPrice, { from: owner });
   
     // Fetch auction details
     const auctionDetails = await auction.getAuctionDetails(auctionId);
@@ -318,7 +367,7 @@ contract("EnglishAuction", (accounts) => {
     const minBidIncrement = web3.utils.toWei("5", "ether"); // Minimum bid increment set to 5 ether
   
     // Create the auction
-    await auction.createAuction(auctionId, duration, minBidIncrement, startingPrice, { from: owner });
+    await auction.createAuction(auctionId, nft.address, tokenId, duration, minBidIncrement, startingPrice, { from: owner });
   
     // Place the first bid (this should succeed)
     const firstBidAmount = web3.utils.toWei("10", "ether"); // Bidder1 bids 10 ether
@@ -348,7 +397,7 @@ contract("EnglishAuction", (accounts) => {
   
   it("should deny withdrawal if the auction has not ended yet", async () => {
     // Create an auction
-    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
+    await auction.createAuction(1, nft.address, tokenId, duration, minBidIncrement, startingPrice, { from: accounts[0] });
   
     // Place a bid from accounts[1]
     const bidAmount = web3.utils.toWei("1", "ether");
@@ -372,5 +421,89 @@ contract("EnglishAuction", (accounts) => {
       bidAmount,
       "Contract balance should remain unchanged as the withdrawal should fail"
     );
+  });
+  
+  it("should allow only the NFT owner to create an auction", async () => {
+    // Try to create an auction by an address that doesn't own the NFT (accounts[1])
+    try {
+      await auction.createAuction(
+        1, 
+        nft.address, 
+        tokenId, 
+        duration, 
+        minBidIncrement, 
+        startingPrice, 
+        { from: accounts[1] }
+      );
+      assert.fail("The auction should only be created by the owner of the NFT");
+    } catch (error) {
+      assert(error.message.includes("Not the NFT owner"), "Expected error not thrown");
+    }
+    
+    // Create auction by the owner of the NFT (accounts[0])
+    const tx = await auction.createAuction(
+      1, 
+      nft.address, 
+      tokenId, 
+      duration, 
+      minBidIncrement, 
+      startingPrice, 
+      { from: accounts[0] }
+    );
+    
+    // Ensure that the auction is created successfully by the owner
+    const auctionDetails = await auction.getAuctionDetails(1);
+    assert.equal(auctionDetails.creator, accounts[0], "Auction creator should be the owner of the NFT");
   });  
+
+  it("should transfer NFT ownership to the highest bidder after auction ends", async () => {
+    await auction.createAuction(
+      1,
+      nft.address,
+      tokenId, 
+      duration,
+      minBidIncrement,
+      startingPrice,
+      { from: accounts[0] }
+    );
+  
+    const bidAmount = web3.utils.toWei("0.1", "ether");
+    await auction.placeBid(1, { from: accounts[1], value: bidAmount });
+    const auctionDetails = await auction.getAuctionDetails(1);
+    console.log("Auction details ending", auctionDetails);
+  
+    await new Promise((resolve, reject) => {
+      web3.currentProvider.send(
+        {
+          jsonrpc: "2.0",
+          method: "evm_increaseTime",
+          params: [3600], // Increase time by 1 hour
+          id: new Date().getTime(),
+        },
+        (err, res) => (err ? reject(err) : resolve(res))
+      );
+    });
+  
+    await new Promise((resolve, reject) => {
+      web3.currentProvider.send(
+        {
+          jsonrpc: "2.0",
+          method: "evm_mine",
+          id: new Date().getTime(),
+        },
+        (err, res) => (err ? reject(err) : resolve(res))
+      );
+    });
+
+    console.log("accounts[0]:", accounts[0]);
+    console.log("accounts[1]:", accounts[1]);
+  
+    await auction.endAuction(1, { from: accounts[0] });
+    const newOwner = await nft.ownerOf(tokenId);
+    assert.equal(
+      newOwner,
+      accounts[1],
+      "The NFT ownership should have transferred to the highest bidder"
+    );
+  });
 });
