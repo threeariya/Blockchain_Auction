@@ -48,7 +48,7 @@
   "sourceMap": "411:484:3:-:0;;;;;;;;;;;;;;;-1:-1:-1;;;411:484:3;;;;;;;;;;;;;;;;;",
   "deployedSourceMap": "411:484:3:-:0;;;;;;;;",
   "source": "// SPDX-License-Identifier: MIT\n// OpenZeppelin Contracts (last updated v5.1.0) (utils/Errors.sol)\n\npragma solidity ^0.8.20;\n\n/**\n * @dev Collection of common custom errors used in multiple contracts\n *\n * IMPORTANT: Backwards compatibility is not guaranteed in future versions of the library.\n * It is recommended to avoid relying on the error API for critical functionality.\n *\n * _Available since v5.1._\n */\nlibrary Errors {\n    /**\n     * @dev The ETH balance of the account is not enough to perform the operation.\n     */\n    error InsufficientBalance(uint256 balance, uint256 needed);\n\n    /**\n     * @dev A call to an address target failed. The target may have reverted.\n     */\n    error FailedCall();\n\n    /**\n     * @dev The deployment failed.\n     */\n    error FailedDeployment();\n\n    /**\n     * @dev A necessary precompile is missing.\n     */\n    error MissingPrecompile(address);\n}\n",
-  "sourcePath": "@openzeppelin/contracts/utils/Errors.sol",
+  "sourcePath": "@openzeppelin\\contracts\\utils\\Errors.sol",
   "ast": {
     "absolutePath": "@openzeppelin/contracts/utils/Errors.sol",
     "exportedSymbols": {
@@ -276,7 +276,7 @@
   },
   "networks": {},
   "schemaVersion": "3.4.16",
-  "updatedAt": "2024-12-12T11:15:25.683Z",
+  "updatedAt": "2024-12-13T08:47:19.848Z",
   "devdoc": {
     "details": "Collection of common custom errors used in multiple contracts IMPORTANT: Backwards compatibility is not guaranteed in future versions of the library. It is recommended to avoid relying on the error API for critical functionality. _Available since v5.1._",
     "errors": {

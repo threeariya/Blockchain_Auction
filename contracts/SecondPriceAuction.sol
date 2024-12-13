@@ -11,8 +11,10 @@ contract SecondPriceAuction {
         uint256 auctionEndTime;
         bool auctionEnded;
         address creator;
-        uint256 highestBid; // Placeholder to determine the second-highest bid
-        uint256 secondHighestBid; // Keeps track of the second-highest bid
+        uint256 highestBid; // Highest bid amount
+        uint256 secondHighestBid; // Second-highest bid
+        uint256 startingPrice; // The starting price of the auction
+        uint256 bidIncrement; // Minimum increment required for the next bid
         address highestBidder;
         mapping(address => uint256) bids; // Bids submitted by participants
     }
@@ -44,15 +46,28 @@ contract SecondPriceAuction {
     }
 
     // Create a new second-price auction
-    function createAuction(uint256 auctionId, uint256 _duration) external {
+    function createAuction(
+        uint256 auctionId,
+        uint256 _duration,
+        uint256 _startingPrice, // Optionally set starting price
+        uint256 _bidIncrement    // Optionally set bid increment
+    ) external {
         require(auctions[auctionId].auctionEndTime == 0, "Auction already exists");
-        
+
         // Initialize the auction fields individually
         Auction storage auction = auctions[auctionId];
         auction.auctionEndTime = block.timestamp + _duration;
         auction.auctionEnded = false;
         auction.creator = msg.sender;
-        auction.highestBid = 0;
+
+        // Set the starting price and bid increment, default to 0 if not provided
+        auction.startingPrice = _startingPrice == 0 ? 0 : _startingPrice;
+        auction.bidIncrement = _bidIncrement == 0 ? 0 : _bidIncrement;
+
+        // Set the highest bid to the starting price if provided, otherwise start at 0
+        auction.highestBid = auction.startingPrice;
+
+        // Initialize the second-highest bid and highest bidder
         auction.secondHighestBid = 0;
         auction.highestBidder = address(0);
 
@@ -64,20 +79,33 @@ contract SecondPriceAuction {
         Auction storage auction = auctions[auctionId];
         require(msg.value > 0, "Bid value must be greater than zero");
 
-        auction.bids[msg.sender] += msg.value;
+        uint256 newBidAmount = auction.bids[msg.sender] + msg.value;
 
-        if (auction.bids[msg.sender] > auction.highestBid) {
-            // Update second-highest bid before changing highest
+        // If starting price is 0, the first bid can be any positive value
+        if (auction.startingPrice == 0) {
+            // If this is the first bid, no increment condition
+            require(newBidAmount > auction.highestBid, "Bid must be higher than the current highest bid");
+        } else {
+            // Ensure the new bid is higher than the highest bid by at least the increment
+            require(newBidAmount >= auction.highestBid + auction.bidIncrement, "Bid must be higher than current highest bid by at least the increment");
+        }
+
+        auction.bids[msg.sender] = newBidAmount;
+
+        // Update highest and second-highest bids
+        if (newBidAmount > auction.highestBid) {
+            // Update second-highest bid before changing the highest
             auction.secondHighestBid = auction.highestBid;
-            auction.highestBid = auction.bids[msg.sender];
+            auction.highestBid = newBidAmount;
             auction.highestBidder = msg.sender;
-        } else if (auction.bids[msg.sender] > auction.secondHighestBid) {
+        } else if (newBidAmount > auction.secondHighestBid) {
             // Update second-highest bid if higher than current second-highest
-            auction.secondHighestBid = auction.bids[msg.sender];
+            auction.secondHighestBid = newBidAmount;
         }
 
         emit BidSubmitted(auctionId, msg.sender, msg.value);
     }
+
 
     // End the auction and transfer funds
     function endAuction(uint256 auctionId) external onlyAuctionCreator(auctionId) nonReentrant {

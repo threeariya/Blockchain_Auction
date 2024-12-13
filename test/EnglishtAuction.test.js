@@ -4,6 +4,7 @@ contract("EnglishAuction", (accounts) => {
   let auction;
   const duration = 3600; // 1 hour
   const minBidIncrement = web3.utils.toWei("0.01", "ether"); // 0.01 ether
+  const startingPrice = web3.utils.toWei("0", "ether"); // Starting price set to 0 ether
 
   beforeEach(async () => {
     // Deploy the contract with the correct parameters: duration and minBidIncrement
@@ -12,7 +13,7 @@ contract("EnglishAuction", (accounts) => {
 
   it("should allow any user to create their own auction", async () => {
     // Create an auction by accounts[0]
-    const tx1 = await auction.createAuction(1, duration, minBidIncrement, { from: accounts[0] });
+    const tx1 = await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
   
     // Verify that the auction details are correct
     const auctionDetails = await auction.auctions(1);
@@ -28,7 +29,7 @@ contract("EnglishAuction", (accounts) => {
     assert.equal(event1.args.minBidIncrement.toString(), minBidIncrement, "Minimum bid increment in the event should match");
   
     // Create an auction by accounts[1]
-    const tx2 = await auction.createAuction(2, duration, minBidIncrement, { from: accounts[1] });
+    const tx2 = await auction.createAuction(2, duration, minBidIncrement, startingPrice, { from: accounts[1] });
   
     // Verify the auction details
     const auctionDetails2 = await auction.auctions(2);
@@ -45,7 +46,7 @@ contract("EnglishAuction", (accounts) => {
   });
 
   it("should allow users to bid on any auction", async () => {
-    await auction.createAuction(1, duration, minBidIncrement, { from: accounts[0] });
+    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
 
     // Place a bid of 1 ether from accounts[1]
     await auction.placeBid(1, { from: accounts[1], value: web3.utils.toWei("1", "ether") });
@@ -71,7 +72,7 @@ contract("EnglishAuction", (accounts) => {
   });
 
   it("should reject a bid lower than the minimum increment", async () => {
-    await auction.createAuction(1, duration, minBidIncrement, { from: accounts[0] });
+    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
 
     // Place an initial valid bid of 1 ether
     await auction.placeBid(1, { from: accounts[1], value: web3.utils.toWei("1", "ether") });
@@ -97,7 +98,7 @@ contract("EnglishAuction", (accounts) => {
   });
 
   it("should allow the creator to end their auction after time has passed", async () => {
-    await auction.createAuction(1, duration, minBidIncrement, { from: accounts[0] });
+    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
 
     // Place a valid bid
     await auction.placeBid(1, { from: accounts[1], value: web3.utils.toWei("1", "ether") });
@@ -144,7 +145,7 @@ contract("EnglishAuction", (accounts) => {
   });
 
   it("should revert if non-owner tries to end the auction", async () => {
-    await auction.createAuction(1, duration, minBidIncrement, { from: accounts[0] });
+    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
 
     // Try to end the auction as a non-owner (accounts[1])
     try {
@@ -152,7 +153,7 @@ contract("EnglishAuction", (accounts) => {
       assert.fail("Non-creator should not be allowed to end the auction");
     } catch (error) {
       assert(
-        error.message.includes("Only the creator can end the auction"),
+        error.message.includes("Only the auction creator can perform this action"),
         "Expected error for non-creator trying to end the auction"
       );
     }
@@ -160,7 +161,7 @@ contract("EnglishAuction", (accounts) => {
 
   it("should refund the previous highest bidder when a new highest bid is placed", async () => {
     // Create an auction
-    await auction.createAuction(1, duration, minBidIncrement, { from: accounts[0] });
+    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
   
     // Place an initial bid of 1 ether from accounts[1]
     const initialBidder = accounts[1];
@@ -194,7 +195,7 @@ contract("EnglishAuction", (accounts) => {
 
   it("should prevent the current highest bidder from re-bidding in the same auction", async () => {
     // Create an auction
-    await auction.createAuction(1, duration, minBidIncrement, { from: accounts[0] });
+    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
   
     // Place an initial bid of 1 ether from accounts[1]
     const highestBidder = accounts[1];
@@ -226,4 +227,122 @@ contract("EnglishAuction", (accounts) => {
       "Highest bidder should remain the same"
     );
   });
+
+  it("should allow the owner to withdraw funds after the auction ends", async () => {
+    // Create an auction by the owner (accounts[0])
+    const owner = accounts[0];
+    const highestBidder = accounts[1];
+    const bidAmount = web3.utils.toWei("1", "ether");
+  
+    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: owner });
+  
+    // Place a bid by accounts[1]
+    await auction.placeBid(1, { from: highestBidder, value: bidAmount });
+  
+    // Simulate time passing to end the auction
+    await new Promise((resolve, reject) => {
+      web3.currentProvider.send(
+        {
+          jsonrpc: "2.0",
+          method: "evm_increaseTime",
+          params: [3600], // Increase time by 1 hour
+          id: new Date().getTime(),
+        },
+        (err, res) => (err ? reject(err) : resolve(res))
+      );
+    });
+    await new Promise((resolve, reject) => {
+      web3.currentProvider.send(
+        {
+          jsonrpc: "2.0",
+          method: "evm_mine",
+          id: new Date().getTime(),
+        },
+        (err, res) => (err ? reject(err) : resolve(res))
+      );
+    });
+  
+    // End the auction by the owner
+    await auction.endAuction(1, { from: owner });
+  
+    // Record the owner's balance before withdrawal
+    const ownerBalanceBefore = web3.utils.toBN(await web3.eth.getBalance(owner));
+  
+    // Withdraw funds (Correct function name is withdraw)
+    const tx = await auction.withdraw(1, { from: owner });
+  
+    // Record the owner's balance after withdrawal
+    const ownerBalanceAfter = web3.utils.toBN(await web3.eth.getBalance(owner));
+  
+    // Calculate gas cost
+    const gasUsed = web3.utils.toBN(tx.receipt.gasUsed);
+    const txDetails = await web3.eth.getTransaction(tx.tx);
+    const gasPrice = web3.utils.toBN(txDetails.gasPrice);
+    const gasCost = gasUsed.mul(gasPrice);
+  
+    // Verify the owner's balance increased by the bid amount minus gas cost
+    assert.equal(
+      ownerBalanceAfter.toString(),
+      ownerBalanceBefore.add(web3.utils.toBN(bidAmount)).sub(gasCost).toString(),
+      "Owner's balance should increase by the bid amount minus gas cost"
+    );
+  
+    // Ensure funds are withdrawn from the contract
+    const contractBalance = await web3.eth.getBalance(auction.address);
+    assert.equal(contractBalance, "0", "Contract balance should be 0 after withdrawal");
+  }); 
+  
+  it("should set the starting price to 10 when creating an auction", async () => {
+    const owner = accounts[0];
+    const auctionId = 1;
+    const duration = 3600; // 1 hour duration
+    const minBidIncrement = 5; // Minimum bid increment
+    const startingPrice = web3.utils.toWei("10", "ether"); // Starting price of 10 ether
+  
+    // Create the auction with a starting price of 10 ether
+    await auction.createAuction(auctionId, duration, minBidIncrement, startingPrice, { from: owner });
+  
+    // Fetch auction details
+    const auctionDetails = await auction.getAuctionDetails(auctionId);
+  
+    // Assert that the starting price is set correctly (highestBid should be 10 ether)
+    assert.equal(auctionDetails.highestBid.toString(), startingPrice, "Starting price should be set to 10 ether");
+  });
+  
+  it("should enforce the minimum bid increment when placing bids", async () => {
+    const owner = accounts[0];
+    const bidder1 = accounts[1];
+    const bidder2 = accounts[2];
+    const auctionId = 2;
+    const duration = 3600; // 1 hour duration
+    const minBidIncrement = web3.utils.toWei("5", "ether"); // Minimum bid increment set to 5 ether
+  
+    // Create the auction
+    await auction.createAuction(auctionId, duration, minBidIncrement, startingPrice, { from: owner });
+  
+    // Place the first bid (this should succeed)
+    const firstBidAmount = web3.utils.toWei("10", "ether"); // Bidder1 bids 10 ether
+    await auction.placeBid(auctionId, { from: bidder1, value: firstBidAmount });
+  
+    // Get auction details after the first bid
+    let auctionDetails = await auction.getAuctionDetails(auctionId);
+    assert.equal(auctionDetails.highestBid.toString(), firstBidAmount, "First bid should be the highest bid");
+  
+    // Try to place a second bid that doesn't meet the minimum bid increment (should fail)
+    const invalidBidAmount = web3.utils.toWei("14", "ether"); // 14 ether is less than the required 15 ether (10 + 5)
+    try {
+      await auction.placeBid(auctionId, { from: bidder2, value: invalidBidAmount });
+      assert.fail("Bid smaller than the required increment should fail");
+    } catch (error) {
+      assert.include(error.message, "Bid must be higher than current bid plus the minimum increment", "Error message should contain the correct message");
+    }
+  
+    // Place a valid bid by bidder2 (this should succeed)
+    const validBidAmount = web3.utils.toWei("15", "ether"); // Bidder2 bids 15 ether, which is valid
+    await auction.placeBid(auctionId, { from: bidder2, value: validBidAmount });
+  
+    // Get auction details after the valid second bid
+    auctionDetails = await auction.getAuctionDetails(auctionId);
+    assert.equal(auctionDetails.highestBid.toString(), validBidAmount, "Second bid should be the highest bid");
+  });  
 });

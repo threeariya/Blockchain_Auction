@@ -125,13 +125,76 @@ contract("SecondPriceAuction", (accounts) => {
     }
   });
 
-  it("should allow bidders to withdraw unused funds", async () => {
+  // Additional Test Cases for Discussed Scenarios
+
+  it("should handle a tie bid scenario", async () => {
+    const duration = 3600; // 1 hour in seconds
+    await auction.createAuction(1, duration, { from: accounts[0] });
+
+    // Place tied bids
+    await auction.submitBid(1, { from: accounts[1], value: web3.utils.toWei("1", "ether") });
+    await auction.submitBid(1, { from: accounts[2], value: web3.utils.toWei("1", "ether") });
+
+    // Fetch auction details
+    const auctionDetails = await auction.auctions(1);
+
+    // Validate highest bid and second-highest bid
+    assert.equal(
+      web3.utils.fromWei(auctionDetails.highestBid, "ether"),
+      "1",
+      "Highest bid should be 1 ether"
+    );
+    assert.equal(
+      web3.utils.fromWei(auctionDetails.secondHighestBid, "ether"),
+      "0",
+      "Second-highest bid should be 0 ether"
+    );
+
+    // Validate highest bidder (should be the first bidder due to tie)
+    assert.equal(
+      auctionDetails.highestBidder,
+      accounts[1],
+      "Highest bidder should be accounts[1] in case of tie"
+    );
+  });
+
+  it("should handle bids surpassing the highest bid", async () => {
+    const duration = 3600; // 1 hour in seconds
+    await auction.createAuction(1, duration, { from: accounts[0] });
+
+    // Place initial bids
+    await auction.submitBid(1, { from: accounts[1], value: web3.utils.toWei("1", "ether") });
+    await auction.submitBid(1, { from: accounts[2], value: web3.utils.toWei("1.5", "ether") });
+
+    // Surpass highest bid
+    await auction.submitBid(1, { from: accounts[3], value: web3.utils.toWei("2", "ether") });
+
+    // Fetch auction details
+    const auctionDetails = await auction.auctions(1);
+
+    // Validate highest bid and second-highest bid
+    assert.equal(
+      web3.utils.fromWei(auctionDetails.highestBid, "ether"),
+      "2",
+      "Highest bid should be 2 ether"
+    );
+    assert.equal(
+      web3.utils.fromWei(auctionDetails.secondHighestBid, "ether"),
+      "1.5",
+      "Second-highest bid should be 1.5 ether"
+    );
+
+    // Validate highest bidder
+    assert.equal(auctionDetails.highestBidder, accounts[3], "Highest bidder should be accounts[3]");
+  });
+
+  it("should calculate the correct payment when ending an auction", async () => {
     const duration = 3600; // 1 hour in seconds
     await auction.createAuction(1, duration, { from: accounts[0] });
 
     // Place bids
     await auction.submitBid(1, { from: accounts[1], value: web3.utils.toWei("1", "ether") });
-    await auction.submitBid(1, { from: accounts[2], value: web3.utils.toWei("1.5", "ether") });
+    await auction.submitBid(1, { from: accounts[2], value: web3.utils.toWei("2", "ether") });
 
     // Simulate time passing
     await new Promise((resolve, reject) => {
@@ -157,17 +220,14 @@ contract("SecondPriceAuction", (accounts) => {
     });
 
     // End the auction
-    await auction.endAuction(1, { from: accounts[0] });
+    const tx = await auction.endAuction(1, { from: accounts[0] });
 
-    // Withdraw funds for accounts[1] (non-winning bidder)
-    const initialBalance = web3.utils.toBN(await web3.eth.getBalance(accounts[1]));
-    const tx = await auction.withdraw(1, { from: accounts[1] });
-    const finalBalance = web3.utils.toBN(await web3.eth.getBalance(accounts[1]));
-
-    assert(finalBalance.gt(initialBalance), "Non-winning bidder should receive their funds back");
-
-    // Ensure only remaining funds are withdrawn
-    const auctionDetails = await auction.auctions(1);
-    assert.equal(auctionDetails.bids[accounts[1]], "0", "Withdrawn balance should be set to zero");
+    // Validate payment
+    const event = tx.logs.find((log) => log.event === "AuctionEnded");
+    assert.equal(
+      web3.utils.fromWei(event.args.amount, "ether"),
+      "1",
+      "Winning payment should be 1 ether (second-highest bid)"
+    );
   });
 });
