@@ -15,6 +15,7 @@ const EnglishAuctionPage = () => {
   const [bidAuctionId, setBidAuctionId] = useState("");
   const [bidAmount, setBidAmount] = useState("");
   const [auctions, setAuctions] = useState([]);
+  const [startingPrice, setStartingPrice] = useState("");
 
   // Initialize Web3, accounts, and the contract
   useEffect(() => {
@@ -86,34 +87,27 @@ const EnglishAuctionPage = () => {
     if (!englishAuctionContract || !accounts.length) return;
   
     try {
-      console.log("Creating Auction:", { auctionId, duration, minBidIncrement });
-  
       const durationInSeconds = parseInt(duration);
       const minIncrementInWei = web3.utils.toWei(minBidIncrement, "ether");
+      const startingPriceInWei = web3.utils.toWei(startingPrice, "ether");
   
-      if (durationInSeconds <= 0 || parseFloat(minBidIncrement) <= 0) {
-        alert("Invalid duration or minimum bid increment.");
+      if (durationInSeconds <= 0 || parseFloat(minBidIncrement) <= 0 || parseFloat(startingPrice) <= 0) {
+        alert("Invalid duration, minimum bid increment, or starting price.");
         return;
       }
   
       const receipt = await englishAuctionContract.methods
-        .createAuction(auctionId, durationInSeconds, minIncrementInWei)
+        .createAuction(auctionId, durationInSeconds, minIncrementInWei, startingPriceInWei)
         .send({ from: accounts[0] });
   
-      console.log("Auction Created Successfully. Receipt:", receipt);
       alert("Auction created successfully!");
-      fetchAuctions(); // Refresh auctions
+      fetchAuctions();
     } catch (error) {
       console.error("Error creating auction:", error.message);
-      if (error.data) {
-        alert(`Failed to create auction: ${error.data.message}`);
-      } else {
-        alert("Failed to create auction. See console for details.");
-      }
+      alert("Failed to create auction. See console for details.");
     }
-  };  
+  };      
 
-  // Place a bid on an auction
   const placeBid = async () => {
     if (!englishAuctionContract || !accounts.length) {
       console.error("Contract or accounts not initialized.");
@@ -132,7 +126,18 @@ const EnglishAuctionPage = () => {
         return;
       }
   
+      const auctionDetails = await englishAuctionContract.methods.getAuctionDetails(bidAuctionId).call();
+      const highestBid = web3.utils.fromWei(auctionDetails.highestBid, "ether");
+      const minIncrement = web3.utils.fromWei(auctionDetails.minBidIncrement, "ether");
+      const requiredMinimumBid = parseFloat(highestBid) + parseFloat(minIncrement);
       const weiBidAmount = web3.utils.toWei(bidAmount, "ether");
+  
+      if (parseFloat(bidAmount) < requiredMinimumBid) {
+        alert(`Your bid must be at least ${requiredMinimumBid} ETH.`);
+        console.error("Bid amount is too low:", bidAmount);
+        return;
+      }
+  
       console.log("Bid Amount in Wei:", weiBidAmount);
   
       await englishAuctionContract.methods
@@ -149,7 +154,7 @@ const EnglishAuctionPage = () => {
         alert("Failed to place bid. See console for details.");
       }
     }
-  };      
+  };        
 
   useEffect(() => {
     fetchAuctions();
@@ -248,6 +253,13 @@ const EnglishAuctionPage = () => {
           value={minBidIncrement}
           onChange={(e) => setMinBidIncrement(e.target.value)}
         />
+        <input
+  type="text"
+  placeholder="Starting Price (ETH)"
+  value={startingPrice}
+  onChange={(e) => setStartingPrice(e.target.value)}
+/>
+
         <button onClick={createAuction}>Create Auction</button>
       </div>
 
@@ -272,7 +284,7 @@ const EnglishAuctionPage = () => {
       {/* List of Auctions */}
       <h3>All Auctions</h3>
       <table className="auction-table">
-        <thead>
+      <thead>
           <tr>
             <th>Auction ID</th>
             <th>Highest Bidder</th>

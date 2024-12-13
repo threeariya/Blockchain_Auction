@@ -8,6 +8,7 @@ module.exports = {
    *
    * $ truffle test --network <network-name>
    */
+  contracts_build_directory: "./frontend/src/contracts",
 
   networks: {
     // Local development network for Ganache
@@ -36,9 +37,6 @@ module.exports = {
     //   production: true, // Treats this network as if it was a public net (default: false)
     // },
   },
-
-  // Change build directory to frontend/src
-  contracts_build_directory: "./frontend/src/contracts",
 
   // Set default mocha options here, use special reporters, etc.
   mocha: {
