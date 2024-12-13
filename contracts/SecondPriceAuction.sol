@@ -49,8 +49,8 @@ contract SecondPriceAuction {
     function createAuction(
         uint256 auctionId,
         uint256 _duration,
-        uint256 _startingPrice, // Optionally set starting price
-        uint256 _bidIncrement    // Optionally set bid increment
+        uint256 _bidIncrement, // Optionally set bid increment
+        uint256 _startingPrice // Optionally set starting price
     ) external {
         require(auctions[auctionId].auctionEndTime == 0, "Auction already exists");
 

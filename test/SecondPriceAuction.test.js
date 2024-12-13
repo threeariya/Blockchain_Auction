@@ -9,9 +9,10 @@ contract("SecondPriceAuction", (accounts) => {
   });
 
   it("should allow users to create a new auction", async () => {
-    // Create a new auction
     const duration = 3600; // 1 hour in seconds
-    const tx = await auction.createAuction(1, duration, { from: accounts[0] });
+    const minBidIncrement = web3.utils.toWei("0", "ether");
+    const startingPrice = web3.utils.toWei("0.5", "ether"); // 0.5 ether
+    const tx = await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
 
     // Fetch auction details
     const auctionDetails = await auction.auctions(1);
@@ -20,9 +21,14 @@ contract("SecondPriceAuction", (accounts) => {
     assert.equal(auctionDetails.creator, accounts[0], "Auction creator should be accounts[0]");
     assert.isFalse(auctionDetails.auctionEnded, "Auction should not be ended");
     assert.equal(
-      auctionDetails.auctionEndTime.toNumber(),
-      (await web3.eth.getBlock("latest")).timestamp + duration,
-      "Auction end time should be correct"
+      auctionDetails.startingPrice.toString(),
+      startingPrice,
+      "Starting price should be 0.5 ether"
+    );
+    assert.equal(
+      auctionDetails.highestBid.toString(),
+      startingPrice,
+      "Highest bid should be initialized to the starting price"
     );
 
     // Validate event emission
@@ -33,7 +39,9 @@ contract("SecondPriceAuction", (accounts) => {
 
   it("should allow users to place bids", async () => {
     const duration = 3600; // 1 hour in seconds
-    await auction.createAuction(1, duration, { from: accounts[0] });
+    const minBidIncrement = web3.utils.toWei("0", "ether");
+    const startingPrice = web3.utils.toWei("0.5", "ether"); // 0.5 ether
+    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
 
     // Place bids
     await auction.submitBid(1, { from: accounts[1], value: web3.utils.toWei("1", "ether") });
@@ -58,7 +66,9 @@ contract("SecondPriceAuction", (accounts) => {
 
   it("should allow only the creator to end the auction", async () => {
     const duration = 3600; // 1 hour in seconds
-    await auction.createAuction(1, duration, { from: accounts[0] });
+    const minBidIncrement = web3.utils.toWei("0", "ether");
+    const startingPrice = web3.utils.toWei("0.5", "ether"); // 0.5 ether
+    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
 
     // Place bids
     await auction.submitBid(1, { from: accounts[1], value: web3.utils.toWei("1", "ether") });
@@ -107,7 +117,9 @@ contract("SecondPriceAuction", (accounts) => {
 
   it("should not allow non-creator to end the auction", async () => {
     const duration = 3600; // 1 hour in seconds
-    await auction.createAuction(1, duration, { from: accounts[0] });
+    const minBidIncrement = web3.utils.toWei("0", "ether");
+    const startingPrice = web3.utils.toWei("0.5", "ether"); // 0.5 ether
+    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
 
     // Place bids
     await auction.submitBid(1, { from: accounts[1], value: web3.utils.toWei("1", "ether") });
@@ -129,7 +141,9 @@ contract("SecondPriceAuction", (accounts) => {
 
   it("should handle a tie bid scenario", async () => {
     const duration = 3600; // 1 hour in seconds
-    await auction.createAuction(1, duration, { from: accounts[0] });
+    const minBidIncrement = web3.utils.toWei("0", "ether");
+    const startingPrice = web3.utils.toWei("0.5", "ether"); // 0.5 ether
+    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
 
     // Place tied bids
     await auction.submitBid(1, { from: accounts[1], value: web3.utils.toWei("1", "ether") });
@@ -146,8 +160,8 @@ contract("SecondPriceAuction", (accounts) => {
     );
     assert.equal(
       web3.utils.fromWei(auctionDetails.secondHighestBid, "ether"),
-      "0",
-      "Second-highest bid should be 0 ether"
+      "1",
+      "Second-highest bid should be the starting price"
     );
 
     // Validate highest bidder (should be the first bidder due to tie)
@@ -160,7 +174,9 @@ contract("SecondPriceAuction", (accounts) => {
 
   it("should handle bids surpassing the highest bid", async () => {
     const duration = 3600; // 1 hour in seconds
-    await auction.createAuction(1, duration, { from: accounts[0] });
+    const minBidIncrement = web3.utils.toWei("0", "ether");
+    const startingPrice = web3.utils.toWei("0.5", "ether"); // 0.5 ether
+    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
 
     // Place initial bids
     await auction.submitBid(1, { from: accounts[1], value: web3.utils.toWei("1", "ether") });
@@ -190,7 +206,9 @@ contract("SecondPriceAuction", (accounts) => {
 
   it("should calculate the correct payment when ending an auction", async () => {
     const duration = 3600; // 1 hour in seconds
-    await auction.createAuction(1, duration, { from: accounts[0] });
+    const minBidIncrement = web3.utils.toWei("0", "ether");
+    const startingPrice = web3.utils.toWei("0.5", "ether"); // 0.5 ether
+    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
 
     // Place bids
     await auction.submitBid(1, { from: accounts[1], value: web3.utils.toWei("1", "ether") });
@@ -228,6 +246,71 @@ contract("SecondPriceAuction", (accounts) => {
       web3.utils.fromWei(event.args.amount, "ether"),
       "1",
       "Winning payment should be 1 ether (second-highest bid)"
+    );
+  });
+
+  it("should handle bids surpassing the highest bid with minimum increment", async () => {
+    const duration = 3600; // 1 hour in seconds
+    const minBidIncrement = web3.utils.toWei("0.5", "ether"); // Minimum increment: 0.5 ether
+    const startingPrice = web3.utils.toWei("0", "ether"); // Starting price: 0 ether
+    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
+
+    // Account 1 places the first bid of 1 ether
+    await auction.submitBid(1, { from: accounts[1], value: web3.utils.toWei("1", "ether") });
+
+    // Account 2 places a bid of 1.3 ether (valid because it surpasses the highest bid by at least 0.5 ether)
+    await auction.submitBid(1, { from: accounts[2], value: web3.utils.toWei("1.3", "ether") });
+
+    // Fetch auction details after the bids
+    const auctionDetails = await auction.auctions(1);
+
+    // Validate highest bid and second-highest bid
+    assert.equal(
+        web3.utils.fromWei(auctionDetails.highestBid, "ether"),
+        "1.3",
+        "Highest bid should be 1.3 ether"
+    );
+    assert.equal(
+        web3.utils.fromWei(auctionDetails.secondHighestBid, "ether"),
+        "1",
+        "Second-highest bid should be 1 ether"
+    );
+
+    // Validate highest bidder
+    assert.equal(auctionDetails.highestBidder, accounts[2], "Highest bidder should be accounts[2]");
+
+    // Simulate time passing to end the auction
+    await new Promise((resolve, reject) => {
+        web3.currentProvider.send(
+            {
+                jsonrpc: "2.0",
+                method: "evm_increaseTime",
+                params: [3600], // Increase time by 1 hour
+                id: new Date().getTime(),
+            },
+            (err, res) => (err ? reject(err) : resolve(res))
+        );
+    });
+    await new Promise((resolve, reject) => {
+        web3.currentProvider.send(
+            {
+                jsonrpc: "2.0",
+                method: "evm_mine",
+                id: new Date().getTime(),
+            },
+            (err, res) => (err ? reject(err) : resolve(res))
+        );
+    });
+
+    // End the auction
+    const tx = await auction.endAuction(1, { from: accounts[0] });
+
+    // Validate payment (second-highest bid, which is 1 ether)
+    const event = tx.logs.find((log) => log.event === "AuctionEnded");
+    assert.equal(
+        web3.utils.fromWei(event.args.amount, "ether"),
+        "1",
+        "Winning payment should be 1 ether due to the second-highest bid"
     );
   });
 });
