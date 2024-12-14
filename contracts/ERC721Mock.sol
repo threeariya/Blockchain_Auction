@@ -7,19 +7,20 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract ERC721Mock is ERC721, Ownable {
     uint256 private _nextTokenId;
 
-    // Modify the constructor to pass the correct arguments to the base constructors
+    event TokenMinted(address indexed to, uint256 tokenId);
+
     constructor(string memory name, string memory symbol) ERC721(name, symbol) Ownable(msg.sender) {}
 
-    // Mint a new token to the specified address
-    function mint(address to, uint256 tokenId) public onlyOwner {
-        _mint(to, tokenId);
-    }
+   function mint(address to, uint256 tokenId) public onlyOwner {
+    _mint(to, tokenId);
+    emit TokenMinted(to, tokenId); // Emit event
+}
 
-    // Optional: Auto-increment token ID
-    function mintNext(address to) public onlyOwner returns (uint256) {
-        uint256 tokenId = _nextTokenId;
-        _nextTokenId++;
-        _mint(to, tokenId);
-        return tokenId;
-    }
+function mintNext(address to) public onlyOwner returns (uint256) {
+    uint256 tokenId = _nextTokenId;
+    _nextTokenId++;
+    _mint(to, tokenId);
+    emit TokenMinted(to, tokenId); // Emit event
+    return tokenId;
+}
 }
