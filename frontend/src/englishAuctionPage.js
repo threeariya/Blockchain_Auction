@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Web3 from "web3";
 import EnglishAuctionContract from "./contracts/EnglishAuction.json";
 import "./englishAuctionPage.css";
+import bigInt from "big-integer";
 
 const EnglishAuctionPage = () => {
   const [web3, setWeb3] = useState(null);
@@ -92,36 +93,45 @@ const EnglishAuctionPage = () => {
     }
   
     try {
+      // Fetch auction IDs
       const auctionIds = await englishAuctionContract.methods.getAuctionIds().call();
       console.log("Fetched Auction IDs:", auctionIds);
   
       const auctionsData = await Promise.all(
         auctionIds.map(async (id) => {
           try {
-            const auction = await englishAuctionContract.methods.auctions(id).call();
-            const currentBlockNumber = await web3.eth.getBlockNumber(); // Get the current block
-            const remainingBlocks = Math.max(0, auction.auctionEndTime - currentBlockNumber);
+            const auctionId = id.toString(); // Convert auction ID to string
+  
+            const auction = await englishAuctionContract.methods.auctions(auctionId).call();
+            const currentBlockNumber = Number(await web3.eth.getBlockNumber()); // Ensure Number type
+  
+            const auctionEndTime = Number(auction.auctionEndTime); // Convert BigInt to Number
+            const remainingBlocks = Math.max(0, auctionEndTime - currentBlockNumber); // Ensure both are Numbers
+  
+            // Estimate seconds remaining (13 seconds per block)
+            const secondsPerBlock = 13;
+            const remainingSeconds = remainingBlocks * secondsPerBlock;
   
             return {
-              auctionId: auction.auctionId.toString(),
+              auctionId,
               highestBidder: auction.highestBidder,
               highestBid: web3.utils.fromWei(auction.highestBid, "ether"),
-              auctionEndTime: auction.auctionEndTime,
-              remainingBlocks,
+              auctionEndTime: auctionEndTime, // Already a Number
+              remainingBlocks: remainingBlocks, // Number type
+              remainingSeconds: remainingSeconds, // Add seconds left
               auctionEnded: auction.auctionEnded,
               minBidIncrement: web3.utils.fromWei(auction.minBidIncrement, "ether"),
-              ownerId: auction.creator,
+              ownerId: auction.creator, // Map auction.creator to ownerId
               withdrawn: auction.withdrawn,
             };
           } catch (err) {
             console.error(`Error fetching details for auction ID ${id}:`, err.message);
-            return null; // Skip this auction if there's an error
+            return null;
           }
         })
       );
   
-      const validAuctions = auctionsData.filter((a) => a !== null); // Remove null entries
-      setAuctions(validAuctions);
+      setAuctions(auctionsData.filter((a) => a !== null)); // Remove null entries
     } catch (error) {
       console.error("Error fetching auctions from the blockchain:", error.message);
     }
@@ -299,40 +309,63 @@ const EnglishAuctionPage = () => {
   };  
 
   useEffect(() => {
-    const interval = setInterval(async () => {
-      if (auctions.length > 0 && web3) {
-        const currentBlockNumber = await web3.eth.getBlockNumber(); // Fetch current block
-        const updatedAuctions = auctions.map((auction) => ({
-          ...auction,
-          remainingBlocks: Math.max(0, auction.auctionEndTime - currentBlockNumber),
-        }));
-        setAuctions(updatedAuctions);
-      }
-    }, 1000); // Update every second
+    const updateCountdown = async () => {
+      if (!web3 || auctions.length === 0) return;
   
-    return () => clearInterval(interval); // Cleanup on unmount
-  }, [auctions, web3]);  
+      try {
+        const currentBlockNumber = await web3.eth.getBlockNumber();
+  
+        // Update auctions dynamically
+        const updatedAuctions = auctions.map((auction) => {
+          const auctionEndTime = Number(auction.auctionEndTime);
+          const remainingBlocks = Math.max(0, auctionEndTime - currentBlockNumber);
+  
+          const secondsPerBlock = 13; // Average block time in Ethereum
+          const remainingSeconds = remainingBlocks * secondsPerBlock;
+  
+          // Update auction status dynamically
+          const auctionEnded = remainingBlocks === 0;
+  
+          return {
+            ...auction,
+            remainingBlocks,
+            remainingSeconds,
+            auctionEnded, // Dynamically update the ended status
+          };
+        });
+  
+        setAuctions([...updatedAuctions]);
+      } catch (error) {
+        console.error("Error updating countdown:", error.message);
+      }
+    };
+  
+    // Set up a timer to update the auction countdown dynamically
+    const interval = setInterval(updateCountdown, 1000); // Update every second
+  
+    return () => clearInterval(interval); // Clean up interval on unmount
+  }, [web3, auctions]); // Re-run whenever `web3` or `auctions` changes  
   
   const endAuction = async (auctionId) => {
     if (!englishAuctionContract || !accounts.length) return;
   
     try {
-      const currentBlockNumber = await web3.eth.getBlockNumber();
-      const auction = await englishAuctionContract.methods.auctions(auctionId).call();
-  
-      if (currentBlockNumber < auction.auctionEndTime) {
-        alert("Auction is still active and cannot be ended.");
-        return;
-      }
-  
       await englishAuctionContract.methods.endAuction(auctionId).send({ from: accounts[0] });
+  
       alert("Auction ended successfully!");
-      fetchAuctions(); // Refresh auction data
+  
+      // Update the auction's `auctionEnded` property locally
+      setAuctions((prevAuctions) =>
+        prevAuctions.map((a) =>
+          a.auctionId === auctionId ? { ...a, auctionEnded: true } : a
+        )
+      );
     } catch (error) {
       console.error("Error ending auction:", error.message);
       alert("Failed to end auction. See console for details.");
     }
   };  
+  
   
   return (
     <div>
@@ -401,109 +434,95 @@ const EnglishAuctionPage = () => {
       {/* List of Auctions */}
       <h3>All Auctions</h3>
       <table className="auction-table">
-        <thead>
-          <tr>
-            <th>Auction ID</th>
-            <th>Highest Bidder</th>
-            <th>Highest Bid (ETH)</th>
-            <th>Auction End Time</th>
-            <th>Ended</th>
-            <th>Owner ID</th>
-          </tr>
-        </thead>
-        <tbody>
-          {auctions.map((auction) => {
-            // Check if the auction has ended and the current user is not the owner
-            if (
-              auction.auctionEnded &&
-              accounts[0]?.toLowerCase() !== auction.ownerId.toLowerCase()
-            ) {
-              return null; // Hide the row for non-owners if the auction has ended
-            }
-  
-            return (
-              <tr key={auction.auctionId}>
-                <td>{auction.auctionId}</td>
-                <td>{auction.highestBidder}</td>
-                <td>{auction.highestBid}</td>
-                <td>
-                  {auction.remainingBlocks > 0
-                    ? `${auction.remainingBlocks} blocks remaining`
-                    : new Date(auction.auctionEndTime * 1000).toLocaleString()}
-                </td>
-                <td>{auction.auctionEnded ? "Yes" : "No"}</td>
-                <td>{auction.ownerId}</td>
-                <td>
-                  {(() => {
-                    const now = Date.now();
-                    const endTime = new Date(auction.auctionEndTime).getTime();
-                    const remainingTime = Math.max(0, endTime - now);
-  
-                    if (remainingTime > 0) {
-                      // Show time remaining (red if owner)
-                      const hours = Math.floor(remainingTime / (1000 * 60 * 60));
-                      const minutes = Math.floor(
-                        (remainingTime % (1000 * 60 * 60)) / (1000 * 60)
-                      );
-                      const seconds = Math.floor((remainingTime % (1000 * 60)) / 1000);
-                      const timeDisplay = `${hours}h ${minutes}m ${seconds}s remaining`;
-  
-                      if (
-                        accounts[0]?.toLowerCase() === auction.ownerId.toLowerCase()
-                      ) {
-                        return (
-                          <span style={{ color: "red" }}>{timeDisplay}</span>
-                        ); // Red countdown for owner
-                      }
-  
-                      return timeDisplay;
-                    } else if (
-                      accounts[0]?.toLowerCase() === auction.ownerId.toLowerCase()
-                    ) {
-                      // Show the "End Auction" button if the auction has ended but not finalized
-                      if (!auction.auctionEnded) {
-                        return (
-                          <button
-                            style={{ width: "120px" }}
-                            onClick={() => endAuction(auction.auctionId)}
-                          >
-                            End Auction
-                          </button>
-                        );
-                      } else {
-                        // Show the "Withdraw" button if the auction is finalized and the user is the owner
-                        return auction.withdrawn ? (
-                          <button
-                            style={{
-                              width: "100px",
-                              backgroundColor: "#ccc",
-                              color: "#666",
-                              cursor: "not-allowed",
-                            }}
-                            disabled
-                          >
-                            Withdrawn
-                          </button>
-                        ) : (
-                          <button
-                            style={{ width: "100px" }}
-                            onClick={async () => {
-                              await withdrawFunds(auction.auctionId);
-                            }}
-                          >
-                            Withdraw
-                          </button>
-                        );
-                      }
-                    } else {
-                      return "Auction has ended";
-                    }
-                  })()}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
+      <thead>
+  <tr>
+    <th>Auction ID</th>
+    <th>Highest Bidder</th>
+    <th>Highest Bid (ETH)</th>
+    <th>Auction End Time</th>
+    <th>Owner ID</th>
+    <th>Actions</th>
+  </tr>
+</thead>
+<tbody>
+  {auctions.map((auction) => {
+    const remainingTime = auction.remainingSeconds;
+
+    // Calculate and format the remaining time into hh:mm:ss
+    const hours = Math.floor(remainingTime / 3600);
+    const minutes = Math.floor((remainingTime % 3600) / 60);
+    const seconds = remainingTime % 60;
+
+    const formattedTime = `${hours.toString().padStart(2, "0")}:${minutes
+      .toString()
+      .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+
+    return (
+      <tr key={auction.auctionId}>
+        <td>{auction.auctionId}</td>
+        <td>{auction.highestBidder || "No bids yet"}</td>
+        <td>{auction.highestBid}</td>
+        <td>
+          {auction.remainingBlocks > 0 ? (
+            <span style={{ color: "green", fontWeight: "bold" }}>
+              {formattedTime} (Active...)
+            </span>
+          ) : (
+            <span style={{ color: "red", fontWeight: "bold" }}>Auction Ended</span>
+          )}
+        </td>
+        <td>{auction.ownerId}</td>
+        <td>
+          {auction.remainingBlocks > 0 ? (
+            <span style={{ color: "blue", fontWeight: "bold" }}>Ongoing...</span>
+          ) : !auction.auctionEnded &&
+            accounts[0]?.toLowerCase() === auction.ownerId.toLowerCase() ? (
+            <button
+              style={{
+                backgroundColor: "#f39c12",
+                color: "#fff",
+                border: "none",
+                padding: "5px 10px",
+                cursor: "pointer",
+              }}
+              onClick={() => endAuction(auction.auctionId)}
+            >
+              End Auction
+            </button>
+          ) : auction.auctionEnded && !auction.withdrawn ? (
+            <button
+              style={{
+                backgroundColor: "#27ae60",
+                color: "#fff",
+                border: "none",
+                padding: "5px 10px",
+                cursor: "pointer",
+              }}
+              onClick={() => withdrawFunds(auction.auctionId)}
+            >
+              Withdraw
+            </button>
+          ) : auction.auctionEnded && auction.withdrawn ? (
+            <button
+              disabled
+              style={{
+                backgroundColor: "#ccc",
+                color: "#fff",
+                padding: "5px 10px",
+                cursor: "not-allowed",
+              }}
+            >
+              Withdrawn
+            </button>
+          ) : null}
+        </td>
+      </tr>
+    );
+  })}
+</tbody>
+
+
+
       </table>
     </div>
   );
