@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import Web3 from "web3";
 import EnglishAuctionContract from "./contracts/EnglishAuction.json";
 import "./englishAuctionPage.css";
-import bigInt from "big-integer";
 
 const EnglishAuctionPage = () => {
   const [web3, setWeb3] = useState(null);
@@ -93,35 +92,30 @@ const EnglishAuctionPage = () => {
     }
   
     try {
-      // Fetch auction IDs
       const auctionIds = await englishAuctionContract.methods.getAuctionIds().call();
       console.log("Fetched Auction IDs:", auctionIds);
   
       const auctionsData = await Promise.all(
         auctionIds.map(async (id) => {
           try {
-            const auctionId = id.toString(); // Convert auction ID to string
-  
+            const auctionId = id.toString();
             const auction = await englishAuctionContract.methods.auctions(auctionId).call();
-            const currentBlockNumber = Number(await web3.eth.getBlockNumber()); // Ensure Number type
   
-            const auctionEndTime = Number(auction.auctionEndTime); // Convert BigInt to Number
-            const remainingBlocks = Math.max(0, auctionEndTime - currentBlockNumber); // Ensure both are Numbers
+            const currentTime = Date.now() / 1000; // Current time in seconds
+            const auctionEndTime = Number(auction.auctionEndTime);
   
-            // Estimate seconds remaining (13 seconds per block)
-            const secondsPerBlock = 13;
-            const remainingSeconds = remainingBlocks * secondsPerBlock;
+            // Calculate remaining time in seconds
+            const remainingSeconds = Math.max(0, auctionEndTime - currentTime);
   
             return {
               auctionId,
               highestBidder: auction.highestBidder,
               highestBid: web3.utils.fromWei(auction.highestBid, "ether"),
-              auctionEndTime: auctionEndTime, // Already a Number
-              remainingBlocks: remainingBlocks, // Number type
-              remainingSeconds: remainingSeconds, // Add seconds left
-              auctionEnded: auction.auctionEnded,
+              auctionEndTime,
+              remainingSeconds,
+              auctionEnded: auction.auctionEnded, // On-chain status
               minBidIncrement: web3.utils.fromWei(auction.minBidIncrement, "ether"),
-              ownerId: auction.creator, // Map auction.creator to ownerId
+              ownerId: auction.creator,
               withdrawn: auction.withdrawn,
             };
           } catch (err) {
@@ -145,7 +139,7 @@ const EnglishAuctionPage = () => {
   
     try {
       // Parse and validate inputs
-      const durationInSeconds = parseInt(duration);
+      const durationInSeconds = parseInt(duration, 10);
       const minIncrementInWei = web3.utils.toWei(minBidIncrement, "ether");
       const startingPriceInWei = web3.utils.toWei(startingPrice, "ether");
   
@@ -161,15 +155,29 @@ const EnglishAuctionPage = () => {
         tokenId,
       });
   
-      if (
-        durationInSeconds <= 0 ||
-        parseFloat(minBidIncrement) <= 0 ||
-        parseFloat(startingPrice) <= 0 ||
-        !web3.utils.isAddress(nftContract) || // Validate NFT Contract Address
-        parseInt(tokenId) < 0 // Validate Token ID
-      ) {
-        alert("Invalid input values. Please check all fields.");
-        console.error("Invalid input values for createAuction.");
+      // Validate inputs
+      if (!auctionId.trim()) {
+        alert("Auction ID cannot be empty.");
+        return;
+      }
+      if (durationInSeconds <= 0) {
+        alert("Duration must be a positive number.");
+        return;
+      }
+      if (parseFloat(minBidIncrement) <= 0) {
+        alert("Minimum bid increment must be a positive number.");
+        return;
+      }
+      if (parseFloat(startingPrice) <= 0) {
+        alert("Starting price must be a positive number.");
+        return;
+      }
+      if (!web3.utils.isAddress(nftContract)) {
+        alert("Invalid NFT contract address.");
+        return;
+      }
+      if (parseInt(tokenId, 10) < 0 || isNaN(parseInt(tokenId, 10))) {
+        alert("Invalid token ID.");
         return;
       }
   
@@ -196,12 +204,12 @@ const EnglishAuctionPage = () => {
       console.log("Calling createAuction function on the contract...");
       await englishAuctionContract.methods
         .createAuction(
-          auctionId,
-          durationInSeconds,
-          minIncrementInWei,
-          startingPriceInWei,
-          nftContract, 
-          tokenId
+          auctionId, // Auction ID
+          nftContract, // Address of the NFT contract
+          tokenId, // Token ID
+          durationInSeconds, // Duration in seconds
+          minIncrementInWei, // Minimum bid increment in wei
+          startingPriceInWei // Starting price in wei
         )
         .send({ from: accounts[0] });
   
@@ -221,7 +229,8 @@ const EnglishAuctionPage = () => {
       console.error("Full error details:", error);
       alert("Failed to create auction. See console for details.");
     }
-  };          
+  };
+            
 
   const placeBid = async () => {
     if (!englishAuctionContract || !accounts.length) {
@@ -289,7 +298,59 @@ const EnglishAuctionPage = () => {
   
       alert("Funds withdrawn successfully!");
   
-      // Update the auction's `withdrawn` property to reflect the withdrawn state
+      // Fetch the updated auction data from the blockchain
+      const updatedAuction = await englishAuctionContract.methods.auctions(auctionId).call();
+  
+      // Update the local auctions state
+      setAuctions((prevAuctions) =>
+        prevAuctions.map((auction) =>
+          auction.auctionId === auctionId
+            ? { ...auction, withdrawn: updatedAuction.withdrawn }
+            : auction
+        )
+      );
+  
+      fetchAuctions(); // Optionally refetch all auctions for consistency
+    } catch (error) {
+      console.error("Error withdrawing funds:", error.message);
+      alert("Failed to withdraw funds. See console for details.");
+    }
+  };  
+  
+  useEffect(() => {
+    if (!englishAuctionContract || !web3) return;
+  
+    // Listen for AuctionEnded event
+    englishAuctionContract.events.AuctionEnded({}, (error, event) => {
+      if (error) {
+        console.error("Error in AuctionEnded event listener:", error);
+        return;
+      }
+      console.log("AuctionEnded event detected:", event);
+  
+      const { auctionId } = event.returnValues;
+  
+      // Update the specific auction as ended
+      setAuctions((prevAuctions) =>
+        prevAuctions.map((auction) =>
+          auction.auctionId === auctionId
+            ? { ...auction, auctionEnded: true }
+            : auction
+        )
+      );
+    });
+  
+    // Listen for FundsWithdrawn event
+    englishAuctionContract.events.FundsWithdrawn({}, (error, event) => {
+      if (error) {
+        console.error("Error in FundsWithdrawn event listener:", error);
+        return;
+      }
+      console.log("FundsWithdrawn event detected:", event);
+  
+      const { auctionId } = event.returnValues;
+  
+      // Update the specific auction as withdrawn
       setAuctions((prevAuctions) =>
         prevAuctions.map((auction) =>
           auction.auctionId === auctionId
@@ -297,74 +358,111 @@ const EnglishAuctionPage = () => {
             : auction
         )
       );
-    } catch (error) {
-      console.error("Error withdrawing funds:", error.message);
+    });
   
-      if (error.data) {
-        alert(`Failed to withdraw funds: ${error.data.message}`);
-      } else {
-        alert("Failed to withdraw funds. See console for details.");
-      }
-    }
-  };  
-
+    // Cleanup listeners on component unmount
+    return () => {
+      englishAuctionContract.events.AuctionEnded().unsubscribe();
+      englishAuctionContract.events.FundsWithdrawn().unsubscribe();
+    };
+  }, [englishAuctionContract, web3]);
+  
   useEffect(() => {
-    const updateCountdown = async () => {
-      if (!web3 || auctions.length === 0) return;
-  
-      try {
-        const currentBlockNumber = await web3.eth.getBlockNumber();
-  
-        // Update auctions dynamically
-        const updatedAuctions = auctions.map((auction) => {
-          const auctionEndTime = Number(auction.auctionEndTime);
-          const remainingBlocks = Math.max(0, auctionEndTime - currentBlockNumber);
-  
-          const secondsPerBlock = 13; // Average block time in Ethereum
-          const remainingSeconds = remainingBlocks * secondsPerBlock;
-  
-          // Update auction status dynamically
-          const auctionEnded = remainingBlocks === 0;
-  
-          return {
-            ...auction,
-            remainingBlocks,
-            remainingSeconds,
-            auctionEnded, // Dynamically update the ended status
-          };
-        });
-  
-        setAuctions([...updatedAuctions]);
-      } catch (error) {
-        console.error("Error updating countdown:", error.message);
-      }
+    const updateCountdown = () => {
+      setAuctions((prevAuctions) =>
+        prevAuctions.map((auction) => {
+          if (auction.remainingSeconds > 0) {
+            const remainingSeconds = Math.max(0, auction.remainingSeconds - 1);
+            return { ...auction, remainingSeconds }; // Only update remaining time
+          }
+          return auction; // Leave other fields unchanged
+        })
+      );
     };
   
-    // Set up a timer to update the auction countdown dynamically
     const interval = setInterval(updateCountdown, 1000); // Update every second
-  
     return () => clearInterval(interval); // Clean up interval on unmount
-  }, [web3, auctions]); // Re-run whenever `web3` or `auctions` changes  
+  }, [auctions]);  
   
   const endAuction = async (auctionId) => {
     if (!englishAuctionContract || !accounts.length) return;
   
     try {
+      console.log("Ending auction with ID:", auctionId);
+  
+      // Call the endAuction function on the contract
       await englishAuctionContract.methods.endAuction(auctionId).send({ from: accounts[0] });
   
       alert("Auction ended successfully!");
   
-      // Update the auction's `auctionEnded` property locally
+      // Fetch the updated auction details from the blockchain
+      const updatedAuction = await englishAuctionContract.methods.auctions(auctionId).call();
+  
+      // Update the local auctions state with the new auctionEnded value
       setAuctions((prevAuctions) =>
-        prevAuctions.map((a) =>
-          a.auctionId === auctionId ? { ...a, auctionEnded: true } : a
+        prevAuctions.map((auction) =>
+          auction.auctionId === auctionId
+            ? { ...auction, auctionEnded: updatedAuction.auctionEnded }
+            : auction
         )
       );
+  
+      console.log("Auction updated in frontend:", updatedAuction);
     } catch (error) {
       console.error("Error ending auction:", error.message);
       alert("Failed to end auction. See console for details.");
     }
   };  
+
+  useEffect(() => {
+    if (!englishAuctionContract || !web3) return;
+  
+    // Listen for AuctionEnded event
+    englishAuctionContract.events.AuctionEnded({}, (error, event) => {
+      if (error) {
+        console.error("Error in AuctionEnded event listener:", error);
+        return;
+      }
+      console.log("AuctionEnded event detected:", event);
+  
+      const { auctionId } = event.returnValues;
+  
+      // Update the specific auction as ended
+      setAuctions((prevAuctions) =>
+        prevAuctions.map((auction) =>
+          auction.auctionId === auctionId
+            ? { ...auction, auctionEnded: true }
+            : auction
+        )
+      );
+    });
+  
+    // Listen for FundsWithdrawn event
+    englishAuctionContract.events.FundsWithdrawn({}, (error, event) => {
+      if (error) {
+        console.error("Error in FundsWithdrawn event listener:", error);
+        return;
+      }
+      console.log("FundsWithdrawn event detected:", event);
+  
+      const { auctionId } = event.returnValues;
+  
+      // Update the specific auction as withdrawn
+      setAuctions((prevAuctions) =>
+        prevAuctions.map((auction) =>
+          auction.auctionId === auctionId
+            ? { ...auction, withdrawn: true }
+            : auction
+        )
+      );
+    });
+  
+    // Cleanup listeners on component unmount
+    return () => {
+      englishAuctionContract.events.AuctionEnded().unsubscribe();
+      englishAuctionContract.events.FundsWithdrawn().unsubscribe();
+    };
+  }, [englishAuctionContract, web3]);
   
   
   return (
@@ -434,99 +532,131 @@ const EnglishAuctionPage = () => {
       {/* List of Auctions */}
       <h3>All Auctions</h3>
       <table className="auction-table">
-      <thead>
-  <tr>
-    <th>Auction ID</th>
-    <th>Highest Bidder</th>
-    <th>Highest Bid (ETH)</th>
-    <th>Auction End Time</th>
-    <th>Owner ID</th>
-    <th>Actions</th>
-  </tr>
-</thead>
-<tbody>
-  {auctions.map((auction) => {
-    const remainingTime = auction.remainingSeconds;
+        <thead>
+          <tr>
+            <th>Auction ID</th>
+            <th>Highest Bidder</th>
+            <th>Highest Bid (ETH)</th>
+            <th>Auction End Time</th>
+            <th>Owner ID</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+  {auctions
+    .filter((auction) => {
+      // Show auction only if:
+      // 1. The user is the owner, OR
+      // 2. The auction is still ongoing
+      return (
+        auction.ownerId.toLowerCase() === accounts[0]?.toLowerCase() ||
+        !auction.auctionEnded
+      );
+    })
+    .map((auction) => {
+      // Ensure remainingTime is an integer
+      const remainingTime = Math.floor(auction.remainingSeconds);
 
-    // Calculate and format the remaining time into hh:mm:ss
-    const hours = Math.floor(remainingTime / 3600);
-    const minutes = Math.floor((remainingTime % 3600) / 60);
-    const seconds = remainingTime % 60;
+      // Format remaining time into hh:mm:ss
+      const hours = Math.floor(remainingTime / 3600);
+      const minutes = Math.floor((remainingTime % 3600) / 60);
+      const seconds = remainingTime % 60;
 
-    const formattedTime = `${hours.toString().padStart(2, "0")}:${minutes
-      .toString()
-      .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+      const formattedTime = `${hours
+        .toString()
+        .padStart(2, "0")}:${minutes
+        .toString()
+        .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 
-    return (
-      <tr key={auction.auctionId}>
-        <td>{auction.auctionId}</td>
-        <td>{auction.highestBidder || "No bids yet"}</td>
-        <td>{auction.highestBid}</td>
-        <td>
-          {auction.remainingBlocks > 0 ? (
-            <span style={{ color: "green", fontWeight: "bold" }}>
-              {formattedTime} (Active...)
-            </span>
-          ) : (
-            <span style={{ color: "red", fontWeight: "bold" }}>Auction Ended</span>
-          )}
-        </td>
-        <td>{auction.ownerId}</td>
-        <td>
-          {auction.remainingBlocks > 0 ? (
-            <span style={{ color: "blue", fontWeight: "bold" }}>Ongoing...</span>
-          ) : !auction.auctionEnded &&
-            accounts[0]?.toLowerCase() === auction.ownerId.toLowerCase() ? (
-            <button
-              style={{
-                backgroundColor: "#f39c12",
-                color: "#fff",
-                border: "none",
-                padding: "5px 10px",
-                cursor: "pointer",
-              }}
-              onClick={() => endAuction(auction.auctionId)}
-            >
-              End Auction
-            </button>
-          ) : auction.auctionEnded && !auction.withdrawn ? (
-            <button
-              style={{
-                backgroundColor: "#27ae60",
-                color: "#fff",
-                border: "none",
-                padding: "5px 10px",
-                cursor: "pointer",
-              }}
-              onClick={() => withdrawFunds(auction.auctionId)}
-            >
-              Withdraw
-            </button>
-          ) : auction.auctionEnded && auction.withdrawn ? (
-            <button
-              disabled
-              style={{
-                backgroundColor: "#ccc",
-                color: "#fff",
-                padding: "5px 10px",
-                cursor: "not-allowed",
-              }}
-            >
-              Withdrawn
-            </button>
-          ) : null}
-        </td>
-      </tr>
-    );
-  })}
+      return (
+        <tr key={auction.auctionId}>
+          <td>{auction.auctionId}</td>
+          <td>{auction.highestBidder || "No bids yet"}</td>
+          <td>{auction.highestBid}</td>
+          <td>
+            {!auction.auctionEnded ? (
+              <span style={{ color: "green", fontWeight: "bold" }}>
+                {formattedTime} (Active...)
+              </span>
+            ) : (
+              <span style={{ color: "red", fontWeight: "bold" }}>
+                Auction Ended
+              </span>
+            )}
+          </td>
+          <td>{auction.ownerId}</td>
+          <td>
+            {auction.remainingSeconds === 0 && !auction.auctionEnded ? (
+              auction.ownerId.toLowerCase() === accounts[0]?.toLowerCase() ? (
+                // Owner sees the "End Auction" button
+                <button
+                  style={{
+                    backgroundColor: "#f39c12",
+                    color: "#fff",
+                    border: "none",
+                    padding: "5px 10px",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => endAuction(auction.auctionId)}
+                >
+                  End Auction
+                </button>
+              ) : (
+                // Non-owner sees a disabled "Auction Ended" button
+                <button
+                  disabled
+                  style={{
+                    backgroundColor: "#ccc",
+                    color: "#fff",
+                    padding: "5px 10px",
+                    cursor: "not-allowed",
+                  }}
+                >
+                  Auction Ended
+                </button>
+              )
+            ) : auction.auctionEnded && !auction.withdrawn &&
+              accounts[0]?.toLowerCase() === auction.ownerId.toLowerCase() ? (
+              // Owner sees the "Withdraw" button
+              <button
+                style={{
+                  backgroundColor: "#27ae60",
+                  color: "#fff",
+                  border: "none",
+                  padding: "5px 10px",
+                  cursor: "pointer",
+                }}
+                onClick={() => withdrawFunds(auction.auctionId)}
+              >
+                Withdraw
+              </button>
+            ) : auction.withdrawn ? (
+              // Disabled Withdrawn button
+              <button
+                disabled
+                style={{
+                  backgroundColor: "#ccc",
+                  color: "#fff",
+                  padding: "5px 10px",
+                  cursor: "not-allowed",
+                }}
+              >
+                Withdrawn
+              </button>
+            ) : (
+              <span style={{ color: "blue", fontWeight: "bold" }}>
+                Ongoing...
+              </span>
+            )}
+          </td>
+        </tr>
+      );
+    })}
 </tbody>
-
-
-
       </table>
     </div>
-  );
-}
+  );  
+}  
   
 
 export default EnglishAuctionPage;
