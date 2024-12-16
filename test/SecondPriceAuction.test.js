@@ -372,9 +372,6 @@ contract("SecondPriceAuction", (accounts) => {
     // Fetch auction details after creating the auction
     const auctionDetails = await auction.auctions(1);
   
-    // Log auction details to inspect the structure
-    console.log(auctionDetails);
-  
     // Check that auction is created with the correct nftTokenId
     assert.equal(auctionDetails.nftTokenId.toString(), tokenId.toString(), "Auction should be created with the correct nftTokenId");
     assert.equal(auctionDetails.creator, accounts[0], "Auction creator should be the NFT owner");

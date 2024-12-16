@@ -469,7 +469,6 @@ contract("EnglishAuction", (accounts) => {
     const bidAmount = web3.utils.toWei("0.1", "ether");
     await auction.placeBid(1, { from: accounts[1], value: bidAmount });
     const auctionDetails = await auction.getAuctionDetails(1);
-    console.log("Auction details ending", auctionDetails);
   
     await new Promise((resolve, reject) => {
       web3.currentProvider.send(
@@ -493,9 +492,6 @@ contract("EnglishAuction", (accounts) => {
         (err, res) => (err ? reject(err) : resolve(res))
       );
     });
-
-    console.log("accounts[0]:", accounts[0]);
-    console.log("accounts[1]:", accounts[1]);
   
     await auction.endAuction(1, { from: accounts[0] });
     const newOwner = await nft.ownerOf(tokenId);
