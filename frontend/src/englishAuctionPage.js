@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import Web3 from "web3";
 import EnglishAuctionContract from "./contracts/EnglishAuction.json";
 import "./englishAuctionPage.css";
-import bigInt from "big-integer";
 
 const EnglishAuctionPage = () => {
   const [web3, setWeb3] = useState(null);
