@@ -360,4 +360,95 @@ contract("SecondPriceAuction", (accounts) => {
           "Highest bidder should remain accounts[1] after invalid bid"
       );
   });
+
+  it("should allow only the NFT owner to create an auction", async () => {
+    const duration = 3600; // 1 hour in seconds
+    const minBidIncrement = web3.utils.toWei("0.5", "ether"); // Minimum increment: 0.5 ether
+    const startingPrice = web3.utils.toWei("0", "ether"); // Starting price: 0 ether
+  
+    // Test that the NFT owner (accounts[0]) can create an auction with auctionId = 1
+    await auction.createAuction(1, nft.address, tokenId, duration, minBidIncrement, startingPrice, { from: accounts[0] });
+  
+    // Fetch auction details after creating the auction
+    const auctionDetails = await auction.auctions(1);
+  
+    // Log auction details to inspect the structure
+    console.log(auctionDetails);
+  
+    // Check that auction is created with the correct nftTokenId
+    assert.equal(auctionDetails.nftTokenId.toString(), tokenId.toString(), "Auction should be created with the correct nftTokenId");
+    assert.equal(auctionDetails.creator, accounts[0], "Auction creator should be the NFT owner");
+  
+    // Test that a non-owner (accounts[1]) cannot create an auction with a different auctionId (e.g., 2)
+    try {
+      await auction.createAuction(2, nft.address, tokenId, duration, minBidIncrement, startingPrice, { from: accounts[1] });
+      assert.fail("Non-owner should not be able to create an auction");
+    } catch (error) {
+      assert(
+        error.message.includes("Not the NFT owner"),
+        `Expected 'Not the NFT owner' error, got '${error.message}' instead`
+      );
+    }
+  });
+  
+  it("should transfer NFT ownership to the highest bidder after auction ends", async () => {
+    const duration = 3600; // 1 hour in seconds
+    const minBidIncrement = web3.utils.toWei("0.5", "ether"); // Minimum increment of 0.5 ether
+    const startingPrice = web3.utils.toWei("0", "ether"); // Starting price: 0 ether
+
+    // Create an auction by the NFT owner (accounts[0])
+    await auction.createAuction(1, nft.address, tokenId, duration, minBidIncrement, startingPrice, { from: accounts[0] });
+
+    // Place bids
+    await auction.submitBid(1, { from: accounts[1], value: web3.utils.toWei("1", "ether") });
+    await auction.submitBid(1, { from: accounts[2], value: web3.utils.toWei("2", "ether") });
+
+    // Simulate time passing to end the auction
+    await new Promise((resolve, reject) => {
+      web3.currentProvider.send(
+        {
+          jsonrpc: "2.0",
+          method: "evm_increaseTime",
+          params: [3600], // Increase time by 1 hour
+          id: new Date().getTime(),
+        },
+        (err, res) => (err ? reject(err) : resolve(res))
+      );
+    });
+    await new Promise((resolve, reject) => {
+      web3.currentProvider.send(
+        {
+          jsonrpc: "2.0",
+          method: "evm_mine",
+          id: new Date().getTime(),
+        },
+        (err, res) => (err ? reject(err) : resolve(res))
+      );
+    });
+
+    // End the auction by the creator (accounts[0])
+    const tx = await auction.endAuction(1, { from: accounts[0] });
+
+    // Validate auction is marked as ended
+    const auctionDetails = await auction.auctions(1);
+    assert.isTrue(auctionDetails.auctionEnded, "Auction should be marked as ended");
+
+    // Validate event emission
+    const event = tx.logs.find((log) => log.event === "AuctionEnded");
+    assert.ok(event, "AuctionEnded event should be emitted");
+    assert.equal(event.args.winner, accounts[2], "Winner should be accounts[2]");
+    assert.equal(
+      web3.utils.fromWei(event.args.amount, "ether"),
+      "1", // Highest bid is 2 ether
+      "Winning payment should be 1 ether (highest bid)"
+    );
+
+    // Check the NFT ownership after auction ends
+    const newOwner = await nft.ownerOf(tokenId);
+    assert.equal(newOwner, accounts[2], "The NFT should be transferred to the highest bidder");
+
+    // Optionally, check if the previous owner (accounts[0]) no longer owns the NFT
+    const previousOwner = await nft.ownerOf(tokenId);
+    assert.notEqual(previousOwner, accounts[0], "The previous owner should no longer own the NFT");
+  }); 
 });

@@ -59,10 +59,11 @@ contract SecondPriceAuction {
     ) external {
         require(auctions[auctionId].auctionEndTime == 0, "Auction already exists");
         require(_nftContract != address(0), "Invalid NFT contract address");
+        require(_duration > 0, "Duration must be greater than zero");
         
         // Transfer the NFT to this contract
         IERC721 nft = IERC721(_nftContract);
-        require(nft.ownerOf(_nftTokenId) == msg.sender, "You do not own the specified NFT");
+        require(nft.ownerOf(_nftTokenId) == msg.sender, "Not the NFT owner");
         nft.transferFrom(msg.sender, address(this), _nftTokenId);
 
         // Initialize the auction fields
