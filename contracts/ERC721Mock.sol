@@ -23,4 +23,39 @@ contract ERC721Mock is ERC721, Ownable {
         emit TokenMinted(to, tokenId); // Emit event
         return tokenId;
     }
+
+    // Fetch all tokens owned by a specific address
+    function fetchTokensByOwner(address owner) external view returns (uint256[] memory) {
+        uint256 totalSupply = _nextTokenId; // Total number of minted tokens
+        uint256 ownedCount = 0;
+
+        // First, count how many tokens the owner has
+        for (uint256 tokenId = 0; tokenId < totalSupply; tokenId++) {
+            try this.ownerOf(tokenId) returns (address tokenOwner) {
+                if (tokenOwner == owner) {
+                    ownedCount++;
+                }
+            } catch {
+                // Token does not exist; skip
+            }
+        }
+
+        // Create an array to hold the token IDs
+        uint256[] memory ownedTokens = new uint256[](ownedCount);
+        uint256 index = 0;
+
+        // Populate the array with token IDs
+        for (uint256 tokenId = 0; tokenId < totalSupply; tokenId++) {
+            try this.ownerOf(tokenId) returns (address tokenOwner) {
+                if (tokenOwner == owner) {
+                    ownedTokens[index] = tokenId;
+                    index++;
+                }
+            } catch {
+                // Token does not exist; skip
+            }
+        }
+
+        return ownedTokens;
+    }
 }
