@@ -298,24 +298,18 @@ const EnglishAuctionPage = () => {
   
       alert("Funds withdrawn successfully!");
   
-      // Fetch the updated auction data from the blockchain
-      const updatedAuction = await englishAuctionContract.methods.auctions(auctionId).call();
-  
-      // Update the local auctions state
+      // Update the specific auction locally
       setAuctions((prevAuctions) =>
         prevAuctions.map((auction) =>
-          auction.auctionId === auctionId
-            ? { ...auction, withdrawn: updatedAuction.withdrawn }
-            : auction
+          auction.auctionId === auctionId ? { ...auction, withdrawn: true } : auction
         )
       );
-  
-      fetchAuctions(); // Optionally refetch all auctions for consistency
     } catch (error) {
       console.error("Error withdrawing funds:", error.message);
       alert("Failed to withdraw funds. See console for details.");
     }
-  };  
+  };
+  
   
   useEffect(() => {
     if (!englishAuctionContract || !web3) return;
@@ -366,6 +360,36 @@ const EnglishAuctionPage = () => {
       englishAuctionContract.events.FundsWithdrawn().unsubscribe();
     };
   }, [englishAuctionContract, web3]);
+
+  useEffect(() => {
+    if (!englishAuctionContract || !web3) return;
+  
+    // Listen for FundsWithdrawn event
+    englishAuctionContract.events.FundsWithdrawn({}, (error, event) => {
+      if (error) {
+        console.error("Error in FundsWithdrawn event listener:", error);
+        return;
+      }
+      console.log("FundsWithdrawn event detected:", event);
+  
+      const { auctionId } = event.returnValues;
+  
+      // Update the specific auction as withdrawn
+      setAuctions((prevAuctions) =>
+        prevAuctions.map((auction) =>
+          auction.auctionId === auctionId
+            ? { ...auction, withdrawn: true }
+            : auction
+        )
+      );
+    });
+  
+    // Cleanup listeners on component unmount
+    return () => {
+      englishAuctionContract.events.FundsWithdrawn().unsubscribe();
+    };
+  }, [englishAuctionContract, web3]);
+
   
   useEffect(() => {
     const updateCountdown = () => {
@@ -382,7 +406,33 @@ const EnglishAuctionPage = () => {
   
     const interval = setInterval(updateCountdown, 1000); // Update every second
     return () => clearInterval(interval); // Clean up interval on unmount
-  }, [auctions]);  
+  }, [auctions]);
+  
+  useEffect(() => {
+    const updateAuctionWithdrawnState = async () => {
+      if (!englishAuctionContract || !web3) return;
+  
+      try {
+        const updatedAuctions = await Promise.all(
+          auctions.map(async (auction) => {
+            const auctionDetails = await englishAuctionContract.methods.auctions(auction.auctionId).call();
+            return {
+              ...auction,
+              withdrawn: auctionDetails.withdrawn, // Sync withdrawn state
+            };
+          })
+        );
+  
+        setAuctions(updatedAuctions);
+      } catch (error) {
+        console.error("Error updating auction states:", error.message);
+      }
+    };
+  
+    const interval = setInterval(updateAuctionWithdrawnState, 15000); // Poll every 15 seconds
+    return () => clearInterval(interval); // Clean up on component unmount
+  }, [auctions, englishAuctionContract]);
+  
   
   const endAuction = async (auctionId) => {
     if (!englishAuctionContract || !accounts.length) return;
@@ -586,69 +636,69 @@ const EnglishAuctionPage = () => {
           </td>
           <td>{auction.ownerId}</td>
           <td>
-            {auction.remainingSeconds === 0 && !auction.auctionEnded ? (
-              auction.ownerId.toLowerCase() === accounts[0]?.toLowerCase() ? (
-                // Owner sees the "End Auction" button
-                <button
-                  style={{
-                    backgroundColor: "#f39c12",
-                    color: "#fff",
-                    border: "none",
-                    padding: "5px 10px",
-                    cursor: "pointer",
-                  }}
-                  onClick={() => endAuction(auction.auctionId)}
-                >
-                  End Auction
-                </button>
-              ) : (
-                // Non-owner sees a disabled "Auction Ended" button
-                <button
-                  disabled
-                  style={{
-                    backgroundColor: "#ccc",
-                    color: "#fff",
-                    padding: "5px 10px",
-                    cursor: "not-allowed",
-                  }}
-                >
-                  Auction Ended
-                </button>
-              )
-            ) : auction.auctionEnded && !auction.withdrawn &&
-              accounts[0]?.toLowerCase() === auction.ownerId.toLowerCase() ? (
-              // Owner sees the "Withdraw" button
-              <button
-                style={{
-                  backgroundColor: "#27ae60",
-                  color: "#fff",
-                  border: "none",
-                  padding: "5px 10px",
-                  cursor: "pointer",
-                }}
-                onClick={() => withdrawFunds(auction.auctionId)}
-              >
-                Withdraw
-              </button>
-            ) : auction.withdrawn ? (
-              // Disabled Withdrawn button
-              <button
-                disabled
-                style={{
-                  backgroundColor: "#ccc",
-                  color: "#fff",
-                  padding: "5px 10px",
-                  cursor: "not-allowed",
-                }}
-              >
-                Withdrawn
-              </button>
-            ) : (
-              <span style={{ color: "blue", fontWeight: "bold" }}>
-                Ongoing...
-              </span>
-            )}
-          </td>
+  {auction.remainingSeconds === 0 && !auction.auctionEnded ? (
+    auction.ownerId.toLowerCase() === accounts[0]?.toLowerCase() ? (
+      // Owner sees the "End Auction" button
+      <button
+        style={{
+          backgroundColor: "#f39c12",
+          color: "#fff",
+          border: "none",
+          padding: "5px 10px",
+          cursor: "pointer",
+        }}
+        onClick={() => endAuction(auction.auctionId)}
+      >
+        End Auction
+      </button>
+    ) : (
+      // Non-owner sees a disabled "Auction Ended" button
+      <button
+        disabled
+        style={{
+          backgroundColor: "#ccc",
+          color: "#fff",
+          padding: "5px 10px",
+          cursor: "not-allowed",
+        }}
+      >
+        Auction Ended
+      </button>
+    )
+  ) : auction.auctionEnded && !auction.withdrawn &&
+    accounts[0]?.toLowerCase() === auction.ownerId.toLowerCase() ? (
+    // Owner sees the "Withdraw" button
+    <button
+      style={{
+        backgroundColor: "#27ae60",
+        color: "#fff",
+        border: "none",
+        padding: "5px 10px",
+        cursor: "pointer",
+      }}
+      onClick={() => withdrawFunds(auction.auctionId)}
+    >
+      Withdraw
+    </button>
+  ) : auction.withdrawn ? (
+    // Disabled Withdrawn button
+    <button
+      disabled
+      style={{
+        backgroundColor: "#ccc",
+        color: "#fff",
+        padding: "5px 10px",
+        cursor: "not-allowed",
+      }}
+    >
+      Withdrawn
+    </button>
+  ) : (
+    <span style={{ color: "blue", fontWeight: "bold" }}>
+      Ongoing...
+    </span>
+  )}
+</td>
         </tr>
       );
     })}
