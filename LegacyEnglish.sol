@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
-contract EnglishAuction {
+contract LegacyEnglishAuction {
     using Address for address payable;
 
     struct Auction {
