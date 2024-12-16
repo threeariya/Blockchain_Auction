@@ -12,6 +12,7 @@ contract SecondPriceAuction {
         uint256 auctionEndTime;
         bool auctionEnded;
         address creator;
+        bool withdrawn;
         uint256 highestBid; // Highest bid amount
         uint256 secondHighestBid; // Second-highest bid
         uint256 startingPrice; // The starting price of the auction
@@ -29,6 +30,7 @@ contract SecondPriceAuction {
     event AuctionCreated(uint256 auctionId, uint256 duration, address creator, address nftContract, uint256 tokenId);
     event BidSubmitted(uint256 auctionId, address indexed bidder, uint256 amount);
     event AuctionEnded(uint256 auctionId, address winner, uint256 amount, address nftContract, uint256 tokenId);
+    event FundsWithdrawn(uint256 auctionId, uint256 amount, address indexed creator);
 
     modifier nonReentrant() {
         require(!locked, "Reentrant call detected");
@@ -128,20 +130,18 @@ contract SecondPriceAuction {
         emit AuctionEnded(auctionId, auction.highestBidder, auction.secondHighestBid, auction.nftContract, auction.nftTokenId);
     }
 
-    // Allow bidders to withdraw their unused funds
-    function withdraw(uint256 auctionId) external nonReentrant {
+    function withdraw(uint256 auctionId) external onlyAuctionCreator(auctionId) nonReentrant {
         Auction storage auction = auctions[auctionId];
-        require(auction.auctionEnded, "Auction is still active");
 
-        uint256 amount = auction.bids[msg.sender];
-        require(amount > 0, "No funds to withdraw");
+        require(auction.auctionEnded, "Auction has not yet ended");
+        require(!auction.withdrawn, "Funds already withdrawn");
+        require(auction.highestBid > 0, "No funds to withdraw");
 
-        auction.bids[msg.sender] = 0; // Prevent reentrancy
-        payable(msg.sender).sendValue(amount);
+        uint256 amount = auction.secondHighestBid > 0 ? auction.secondHighestBid : auction.highestBid;
+        auction.withdrawn = true;
+
+        payable(auction.creator).sendValue(amount);
+        emit FundsWithdrawn(auctionId, amount, auction.creator);
     }
 
-    // Fallback to reject unexpected Ether transfers
-    receive() external payable {
-        revert("Direct Ether transfers not allowed");
-    }
 }
