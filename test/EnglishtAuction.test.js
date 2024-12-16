@@ -501,4 +501,76 @@ contract("EnglishAuction", (accounts) => {
       "The NFT ownership should have transferred to the highest bidder"
     );
   });
+
+  it("should allow the winner of an auction to create a new auction using the won NFT", async () => {
+    await auction.createAuction(
+      1,
+      nft.address,
+      tokenId, 
+      duration,
+      minBidIncrement,
+      startingPrice,
+      { from: accounts[0] }
+    );
+    
+    const bidAmount = web3.utils.toWei("0.1", "ether");
+    await auction.placeBid(1, { from: accounts[1], value: bidAmount });
+  
+    // Fast-forward time to simulate auction expiration (1 hour)
+    await new Promise((resolve, reject) => {
+      web3.currentProvider.send(
+        {
+          jsonrpc: "2.0",
+          method: "evm_increaseTime",
+          params: [3600], // Increase time by 1 hour
+          id: new Date().getTime(),
+        },
+        (err, res) => (err ? reject(err) : resolve(res))
+      );
+    });
+  
+    // Mine the block to confirm time has passed
+    await new Promise((resolve, reject) => {
+      web3.currentProvider.send(
+        {
+          jsonrpc: "2.0",
+          method: "evm_mine",
+          id: new Date().getTime(),
+        },
+        (err, res) => (err ? reject(err) : resolve(res))
+      );
+    });
+  
+    await auction.endAuction(1, { from: accounts[0] });
+  
+    const newOwner = await nft.ownerOf(tokenId);
+    assert.equal(
+      newOwner,
+      accounts[1],
+      "The NFT ownership should have transferred to the highest bidder"
+    );
+  
+    const newAuctionId = 2; // A new auction ID for the second auction
+    const newDuration = 3600; // 1 hour
+    const newMinBidIncrement = web3.utils.toWei("0.01", "ether"); // 0.01 ether
+    const newStartingPrice = web3.utils.toWei("0", "ether"); // 0 ether starting price
+  
+    // Approve the auction contract to transfer the NFT
+    await nft.approve(auction.address, tokenId, { from: accounts[1] });
+  
+    // Account[1] creates a new auction using the won NFT
+    await auction.createAuction(
+      newAuctionId,
+      nft.address,
+      tokenId, 
+      newDuration,
+      newMinBidIncrement,
+      newStartingPrice,
+      { from: accounts[1] }
+    );
+  
+    const newAuctionDetails = await auction.getAuctionDetails(newAuctionId);
+    assert.equal(newAuctionDetails.creator, accounts[1], "The creator of the new auction should be account[1]");
+    assert.equal(newAuctionDetails.tokenId.toString(), tokenId.toString(), "The token ID in the new auction should match the NFT they won");
+  });
 });

@@ -2,7 +2,6 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
 contract SecondPriceAuction {
@@ -12,25 +11,31 @@ contract SecondPriceAuction {
         uint256 auctionEndTime;
         bool auctionEnded;
         address creator;
-        uint256 highestBid; // Highest bid amount
-        uint256 secondHighestBid; // Second-highest bid
-        uint256 startingPrice; // The starting price of the auction
-        uint256 bidIncrement; // Minimum increment required for the next bid
+        bool withdrawn;
+        uint256 highestBid;
+        uint256 secondHighestBid;
+        uint256 startingPrice;
+        uint256 bidIncrement;
         address highestBidder;
-        mapping(address => uint256) bids; // Bids submitted by participants
-        address nftContract; // Address of the ERC721 contract
-        uint256 nftTokenId; // Token ID of the NFT being auctioned
+        mapping(address => uint256) bids;
+        address nftContract;
+        uint256 nftTokenId;
     }
 
     mapping(uint256 => Auction) public auctions;
-
-    bool private locked = false; // Custom reentrancy guard
+    uint256[] public auctionIds; // Array to store auction IDs
 
     event AuctionCreated(uint256 auctionId, uint256 duration, address creator, address nftContract, uint256 tokenId);
     event BidSubmitted(uint256 auctionId, address indexed bidder, uint256 amount);
     event AuctionEnded(uint256 auctionId, address winner, uint256 amount, address nftContract, uint256 tokenId);
+    event FundsWithdrawn(uint256 auctionId, uint256 amount, address indexed creator);
+
+    // Add DebugLog event
+    event DebugLog(string key, string value);
+    event DebugLogUint(string key, uint256 value);
 
     modifier nonReentrant() {
+        bool locked = false;
         require(!locked, "Reentrant call detected");
         locked = true;
         _;
@@ -38,9 +43,10 @@ contract SecondPriceAuction {
     }
 
     modifier auctionActive(uint256 auctionId) {
-        require(!auctions[auctionId].auctionEnded, "Auction has ended");
-        require(block.timestamp < auctions[auctionId].auctionEndTime, "Auction has expired");
-        _; 
+        Auction storage auction = auctions[auctionId];
+        require(!auction.auctionEnded, "Auction has already ended");
+        require(block.timestamp < auction.auctionEndTime, "Auction has expired");
+        _;
     }
 
     modifier onlyAuctionCreator(uint256 auctionId) {
@@ -48,7 +54,7 @@ contract SecondPriceAuction {
         _;
     }
 
-    // Create a new second-price auction for an NFT
+    // Create a new auction
     function createAuction(
         uint256 auctionId,
         address _nftContract,
@@ -60,13 +66,11 @@ contract SecondPriceAuction {
         require(auctions[auctionId].auctionEndTime == 0, "Auction already exists");
         require(_nftContract != address(0), "Invalid NFT contract address");
         require(_duration > 0, "Duration must be greater than zero");
-        
-        // Transfer the NFT to this contract
+
         IERC721 nft = IERC721(_nftContract);
         require(nft.ownerOf(_nftTokenId) == msg.sender, "Not the NFT owner");
         nft.transferFrom(msg.sender, address(this), _nftTokenId);
 
-        // Initialize the auction fields
         Auction storage auction = auctions[auctionId];
         auction.auctionEndTime = block.timestamp + _duration;
         auction.auctionEnded = false;
@@ -79,9 +83,16 @@ contract SecondPriceAuction {
         auction.nftContract = _nftContract;
         auction.nftTokenId = _nftTokenId;
 
+        auctionIds.push(auctionId); // Add auction ID to the array
+
         emit AuctionCreated(auctionId, _duration, msg.sender, _nftContract, _nftTokenId);
     }
 
+    // Add the view function to expose auctionIds
+    function getAuctionIds() external view returns (uint256[] memory) {
+        return auctionIds;
+    }
+    
     // Submit a bid (sealed bid process)
     function submitBid(uint256 auctionId) external payable auctionActive(auctionId) nonReentrant {
         Auction storage auction = auctions[auctionId];
@@ -128,20 +139,25 @@ contract SecondPriceAuction {
         emit AuctionEnded(auctionId, auction.highestBidder, auction.secondHighestBid, auction.nftContract, auction.nftTokenId);
     }
 
-    // Allow bidders to withdraw their unused funds
-    function withdraw(uint256 auctionId) external nonReentrant {
+    function withdraw(uint256 auctionId) external onlyAuctionCreator(auctionId) nonReentrant {
         Auction storage auction = auctions[auctionId];
-        require(auction.auctionEnded, "Auction is still active");
 
-        uint256 amount = auction.bids[msg.sender];
-        require(amount > 0, "No funds to withdraw");
+        require(auction.auctionEnded, "Auction has not yet ended");
+        require(!auction.withdrawn, "Funds already withdrawn");
+        require(auction.highestBid > 0, "No funds to withdraw");
 
-        auction.bids[msg.sender] = 0; // Prevent reentrancy
-        payable(msg.sender).sendValue(amount);
-    }
+        // Debug logs
+        emit DebugLog("Auction Ended", auction.auctionEnded ? "true" : "false");
+        emit DebugLog("Funds Withdrawn", auction.withdrawn ? "true" : "false");
+        emit DebugLogUint("Highest Bid", auction.highestBid);
 
-    // Fallback to reject unexpected Ether transfers
-    receive() external payable {
-        revert("Direct Ether transfers not allowed");
+        // Calculate amount to withdraw (second-price logic)
+        uint256 amount = auction.secondHighestBid > 0 ? auction.secondHighestBid : auction.highestBid;
+
+        // Apply withdrawal logic
+        auction.withdrawn = true;
+        payable(auction.creator).sendValue(amount);
+
+        emit FundsWithdrawn(auctionId, amount, auction.creator);
     }
 }
