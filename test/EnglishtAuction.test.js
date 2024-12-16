@@ -1,4 +1,3 @@
-const truffleAssert = require('truffle-assertions');
 const ERC721Mock = artifacts.require("ERC721Mock");
 const EnglishAuction = artifacts.require("EnglishAuction");
 

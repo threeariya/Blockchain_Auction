@@ -51,11 +51,11 @@ contract SecondPriceAuction {
     // Create a new second-price auction for an NFT
     function createAuction(
         uint256 auctionId,
+        address _nftContract,
+        uint256 _nftTokenId,
         uint256 _duration,
         uint256 _bidIncrement,
-        uint256 _startingPrice,
-        address _nftContract,
-        uint256 _nftTokenId
+        uint256 _startingPrice
     ) external {
         require(auctions[auctionId].auctionEndTime == 0, "Auction already exists");
         require(_nftContract != address(0), "Invalid NFT contract address");

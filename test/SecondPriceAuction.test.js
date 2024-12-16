@@ -1,18 +1,30 @@
+const ERC721Mock = artifacts.require("ERC721Mock");
 const SecondPriceAuction = artifacts.require("SecondPriceAuction");
 
 contract("SecondPriceAuction", (accounts) => {
   let auction;
+  let nft;
+  const tokenId = 1;
 
   beforeEach(async () => {
-    // Deploy a new instance of the SecondPriceAuction contract before each test
+    // Deploy a mock ERC-721 contract
+    nft = await ERC721Mock.new("NFT Mock", "NFTM");
+
+    // Mint an NFT to account[0]
+    await nft.mint(accounts[0], tokenId);
+
+    // Deploy the EnglishAuction contract
     auction = await SecondPriceAuction.new({ from: accounts[0] });
+
+    // Approve the auction contract to transfer the NFT
+    await nft.approve(auction.address, tokenId, { from: accounts[0] });
   });
 
   it("should allow users to create a new auction", async () => {
     const duration = 3600; // 1 hour in seconds
     const minBidIncrement = web3.utils.toWei("0", "ether");
     const startingPrice = web3.utils.toWei("0.5", "ether"); // 0.5 ether
-    const tx = await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
+    const tx = await auction.createAuction(1, nft.address, tokenId, duration, minBidIncrement, startingPrice, { from: accounts[0] });
 
     // Fetch auction details
     const auctionDetails = await auction.auctions(1);
@@ -41,7 +53,7 @@ contract("SecondPriceAuction", (accounts) => {
     const duration = 3600; // 1 hour in seconds
     const minBidIncrement = web3.utils.toWei("0", "ether");
     const startingPrice = web3.utils.toWei("0.5", "ether"); // 0.5 ether
-    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
+    await auction.createAuction(1, nft.address, tokenId, duration, minBidIncrement, startingPrice, { from: accounts[0] });
 
     // Place bids
     await auction.submitBid(1, { from: accounts[1], value: web3.utils.toWei("1", "ether") });
@@ -68,7 +80,7 @@ contract("SecondPriceAuction", (accounts) => {
     const duration = 3600; // 1 hour in seconds
     const minBidIncrement = web3.utils.toWei("0", "ether");
     const startingPrice = web3.utils.toWei("0.5", "ether"); // 0.5 ether
-    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
+    await auction.createAuction(1, nft.address, tokenId, duration, minBidIncrement, startingPrice, { from: accounts[0] });
 
     // Place bids
     await auction.submitBid(1, { from: accounts[1], value: web3.utils.toWei("1", "ether") });
@@ -119,7 +131,7 @@ contract("SecondPriceAuction", (accounts) => {
     const duration = 3600; // 1 hour in seconds
     const minBidIncrement = web3.utils.toWei("0", "ether");
     const startingPrice = web3.utils.toWei("0.5", "ether"); // 0.5 ether
-    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
+    await auction.createAuction(1, nft.address, tokenId, duration, minBidIncrement, startingPrice, { from: accounts[0] });
 
     // Place bids
     await auction.submitBid(1, { from: accounts[1], value: web3.utils.toWei("1", "ether") });
@@ -143,7 +155,7 @@ contract("SecondPriceAuction", (accounts) => {
     const duration = 3600; // 1 hour in seconds
     const minBidIncrement = web3.utils.toWei("0", "ether");
     const startingPrice = web3.utils.toWei("0.5", "ether"); // 0.5 ether
-    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
+    await auction.createAuction(1, nft.address, tokenId, duration, minBidIncrement, startingPrice, { from: accounts[0] });
 
     // Place tied bids
     await auction.submitBid(1, { from: accounts[1], value: web3.utils.toWei("1", "ether") });
@@ -176,7 +188,7 @@ contract("SecondPriceAuction", (accounts) => {
     const duration = 3600; // 1 hour in seconds
     const minBidIncrement = web3.utils.toWei("0", "ether");
     const startingPrice = web3.utils.toWei("0.5", "ether"); // 0.5 ether
-    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
+    await auction.createAuction(1, nft.address, tokenId, duration, minBidIncrement, startingPrice, { from: accounts[0] });
 
     // Place initial bids
     await auction.submitBid(1, { from: accounts[1], value: web3.utils.toWei("1", "ether") });
@@ -206,9 +218,9 @@ contract("SecondPriceAuction", (accounts) => {
 
   it("should calculate the correct payment when ending an auction", async () => {
     const duration = 3600; // 1 hour in seconds
-    const minBidIncrement = web3.utils.toWei("0", "ether");
+    const minBidIncrement = web3.utils.toWei("0.1", "ether");
     const startingPrice = web3.utils.toWei("0.5", "ether"); // 0.5 ether
-    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
+    await auction.createAuction(1, nft.address, tokenId, duration, minBidIncrement, startingPrice, { from: accounts[0] });
 
     // Place bids
     await auction.submitBid(1, { from: accounts[1], value: web3.utils.toWei("1", "ether") });
@@ -253,13 +265,13 @@ contract("SecondPriceAuction", (accounts) => {
     const duration = 3600; // 1 hour in seconds
     const minBidIncrement = web3.utils.toWei("0.5", "ether"); // Minimum increment: 0.5 ether
     const startingPrice = web3.utils.toWei("0", "ether"); // Starting price: 0 ether
-    await auction.createAuction(1, duration, minBidIncrement, startingPrice, { from: accounts[0] });
+    await auction.createAuction(1, nft.address, tokenId, duration, minBidIncrement, startingPrice, { from: accounts[0] });
 
     // Account 1 places the first bid of 1 ether
     await auction.submitBid(1, { from: accounts[1], value: web3.utils.toWei("1", "ether") });
 
     // Account 2 places a bid of 1.3 ether (valid because it surpasses the highest bid by at least 0.5 ether)
-    await auction.submitBid(1, { from: accounts[2], value: web3.utils.toWei("1.3", "ether") });
+    await auction.submitBid(1, { from: accounts[2], value: web3.utils.toWei("1.5", "ether") });
 
     // Fetch auction details after the bids
     const auctionDetails = await auction.auctions(1);
@@ -267,8 +279,8 @@ contract("SecondPriceAuction", (accounts) => {
     // Validate highest bid and second-highest bid
     assert.equal(
         web3.utils.fromWei(auctionDetails.highestBid, "ether"),
-        "1.3",
-        "Highest bid should be 1.3 ether"
+        "1.5",
+        "Highest bid should be 1.5 ether"
     );
     assert.equal(
         web3.utils.fromWei(auctionDetails.secondHighestBid, "ether"),
@@ -312,5 +324,40 @@ contract("SecondPriceAuction", (accounts) => {
         "1",
         "Winning payment should be 1 ether due to the second-highest bid"
     );
+  });
+
+  it("should reject bids below the minimum increment", async () => {
+      const duration = 3600; // 1 hour in seconds
+      const minBidIncrement = web3.utils.toWei("0.5", "ether"); // Minimum increment: 0.5 ether
+      const startingPrice = web3.utils.toWei("0", "ether"); // Starting price: 0 ether
+      await auction.createAuction(1, nft.address, tokenId, duration, minBidIncrement, startingPrice, { from: accounts[0] });
+
+      // Account 1 places the first valid bid of 1 ether
+      await auction.submitBid(1, { from: accounts[1], value: web3.utils.toWei("1", "ether") });
+
+      // Account 2 attempts to place a bid of 1.4 ether (less than 1 + 0.5 ether)
+      try {
+          await auction.submitBid(1, { from: accounts[2], value: web3.utils.toWei("1.4", "ether") });
+          assert.fail("The bid should have been rejected due to being below the minimum increment");
+      } catch (error) {
+          // Verify the error is related to bid validation
+          assert(
+              error.message.includes("Bid must be higher than current highest bid by at least the increment"),
+              `Expected 'Bid increment too low' error, got '${error.message}' instead`
+          );
+      }
+
+      // Fetch auction details to confirm state hasn't changed
+      const auctionDetails = await auction.auctions(1);
+      assert.equal(
+          web3.utils.fromWei(auctionDetails.highestBid, "ether"),
+          "1",
+          "Highest bid should remain at 1 ether after invalid bid"
+      );
+      assert.equal(
+          auctionDetails.highestBidder,
+          accounts[1],
+          "Highest bidder should remain accounts[1] after invalid bid"
+      );
   });
 });
