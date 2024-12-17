@@ -11,48 +11,38 @@ contract ERC721Mock is ERC721, Ownable {
 
     constructor(string memory name, string memory symbol) ERC721(name, symbol) Ownable(msg.sender) {}
 
-   function mint(address to, uint256 tokenId) public onlyOwner {
+    function mint(address to, uint256 tokenId) public onlyOwner {
         _mint(to, tokenId);
-        emit TokenMinted(to, tokenId); // Emit event
+        emit TokenMinted(to, tokenId);
+        
+        // Ensure _nextTokenId is in sync
+        if (tokenId >= _nextTokenId) {
+            _nextTokenId = tokenId + 1;
+        }
     }
 
     function mintNext(address to) public onlyOwner returns (uint256) {
         uint256 tokenId = _nextTokenId;
         _nextTokenId++;
         _mint(to, tokenId);
-        emit TokenMinted(to, tokenId); // Emit event
+        emit TokenMinted(to, tokenId);
         return tokenId;
     }
 
-    // Fetch all tokens owned by a specific address
+    // Fetch all tokens owned by a specific address without using _exists
     function fetchTokensByOwner(address owner) external view returns (uint256[] memory) {
         uint256 totalSupply = _nextTokenId; // Total number of minted tokens
-        uint256 ownedCount = 0;
+        uint256 ownedCount = balanceOf(owner); // Get the count of tokens owned by the address
 
-        // First, count how many tokens the owner has
-        for (uint256 tokenId = 0; tokenId < totalSupply; tokenId++) {
-            try this.ownerOf(tokenId) returns (address tokenOwner) {
-                if (tokenOwner == owner) {
-                    ownedCount++;
-                }
-            } catch {
-                // Token does not exist; skip
-            }
-        }
-
-        // Create an array to hold the token IDs
         uint256[] memory ownedTokens = new uint256[](ownedCount);
         uint256 index = 0;
 
-        // Populate the array with token IDs
+        // Loop through tokens up to the current _nextTokenId
         for (uint256 tokenId = 0; tokenId < totalSupply; tokenId++) {
-            try this.ownerOf(tokenId) returns (address tokenOwner) {
-                if (tokenOwner == owner) {
-                    ownedTokens[index] = tokenId;
-                    index++;
-                }
-            } catch {
-                // Token does not exist; skip
+            if (ownerOf(tokenId) == owner) {
+                ownedTokens[index] = tokenId;
+                index++;
+                if (index == ownedCount) break; // Stop once we have all tokens
             }
         }
 
