@@ -9,6 +9,7 @@ const InventoryToken = () => {
   const [userTokens, setUserTokens] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // Initialize Web3 and contract
   useEffect(() => {
     const initWeb3 = async () => {
       if (window.ethereum) {
@@ -29,6 +30,9 @@ const InventoryToken = () => {
             setWeb3(web3Instance);
             setAccounts(accounts);
             setContract(contractInstance);
+
+            // Automatically fetch tokens for the current account
+            fetchUserTokens(contractInstance, accounts[0]);
           } else {
             alert("ERC721Mock contract is not deployed on this network.");
           }
@@ -43,21 +47,29 @@ const InventoryToken = () => {
     initWeb3();
   }, []);
 
-  const fetchUserTokens = async () => {
-    if (!contract || accounts.length === 0) return;
-
+  const fetchUserTokens = async (contractInstance, userAddress) => {
+    if (!contractInstance || !userAddress) return;
+  
     try {
       setLoading(true);
-      const tokenIds = await contract.methods
-        .fetchTokensByOwner(accounts[0])
+      const tokenIds = await contractInstance.methods
+        .fetchTokensByOwner(userAddress)
         .call();
-      setUserTokens(tokenIds);
+  
+      // Filter out invalid token IDs (e.g., 0 values or empty results)
+      const validTokenIds = tokenIds
+        .map((id) => parseInt(id, 10)) // Convert BigNumbers to integers
+        .filter((id) => id > 0); // Keep only valid token IDs greater than 0
+  
+      console.log("Valid Token IDs:", validTokenIds); // Debug log
+      setUserTokens(validTokenIds);
     } catch (error) {
       console.error("Error fetching user tokens: ", error);
     } finally {
       setLoading(false);
     }
   };
+  
 
   return (
     <div style={{ padding: "20px", fontFamily: "Arial, sans-serif" }}>
@@ -66,7 +78,7 @@ const InventoryToken = () => {
         <strong>Connected Account:</strong> {accounts[0] || "Not connected"}
       </p>
       <button
-        onClick={fetchUserTokens}
+        onClick={() => fetchUserTokens(contract, accounts[0])}
         disabled={!contract || loading}
         style={{
           padding: "10px 20px",
@@ -81,19 +93,25 @@ const InventoryToken = () => {
         {loading ? "Loading..." : "Fetch My Tokens"}
       </button>
       <div>
-        <h2>My Tokens</h2>
-        {userTokens.length > 0 ? (
-          <ul>
-            {userTokens.map((tokenId) => (
-              <li key={tokenId} style={{ marginBottom: "5px" }}>
-                Token ID: <strong>{tokenId}</strong>
-              </li>
-            ))}
-          </ul>
+  <h2>My Tokens</h2>
+  {loading ? (
+    <p>Loading tokens...</p>
+  ) : userTokens.length > 0 ? (
+    <ul>
+      {userTokens.map((tokenId, index) => (
+        tokenId ? (
+          <li key={index} style={{ marginBottom: "5px" }}>
+            Token ID: <strong>{tokenId}</strong>
+          </li>
         ) : (
-          <p>No tokens found for this account.</p>
-        )}
-      </div>
+          <li key={index}>Invalid Token ID</li>
+        )
+      ))}
+    </ul>
+  ) : (
+    <p>No tokens found for this account.</p>
+  )}
+</div>
     </div>
   );
 };
