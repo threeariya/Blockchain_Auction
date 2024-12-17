@@ -11,13 +11,12 @@ module.exports = async function (deployer, network, accounts) {
 
   console.log("Contract deployed at address:", instance.address);
 
-  // Mint tokens for all accounts
+  // Mint tokens for all accounts using mintNext to ensure sequential minting
   console.log("Minting tokens...");
 
   for (let i = 0; i < accounts.length; i++) {
-    for (let j = 1; j <= 10; j++) {
-      const tokenId = i * 10 + j; // Unique token IDs for each account
-      await instance.mint(accounts[i], tokenId);
+    for (let j = 0; j < 10; j++) {
+      const tokenId = await instance.mintNext(accounts[i]);
       console.log(`Token ID ${tokenId} minted to: ${accounts[i]}`);
     }
   }
